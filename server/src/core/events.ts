@@ -14,6 +14,8 @@ export interface EventMap {
   'queue:changed': { slug: string };
   'schedule:armed': { slug: string; scheduleId: string; nextAt: string | null };
   'app:changed': { slug: string; table: string };
+  /** Historique de lancements effacé (un script, ou tous quand slug est null). */
+  'runs:purged': { slug: string | null; removed: number };
 }
 
 export type EventName = keyof EventMap;

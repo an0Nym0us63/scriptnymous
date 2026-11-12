@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { config, paths } from '../config.js';
 import { purgeLogs } from '../services/logs.js';
+import { resetGlobal } from '../services/reset.js';
 import { dirSizeBytes } from '../util/fs.js';
 
 export async function registerSettingsRoutes(app: FastifyInstance): Promise<void> {
@@ -65,6 +66,15 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
   app.post('/api/settings/purge', async () => {
     const s = settings.get();
     return purgeLogs(repo, { retentionDays: s.log_retention_days, maxMb: s.log_max_mb }, app.log);
+  });
+
+  /** Remise à zéro globale : historique des lancements (tout ou seulement les échecs), notifications, file d'attente. */
+  const ResetBody = z.object({ runs: z.boolean().default(false), failed_only: z.boolean().default(false), notifications: z.boolean().default(false), queue: z.boolean().default(false) });
+  app.post('/api/settings/reset', async (req, reply) => {
+    const body = ResetBody.safeParse(req.body ?? {});
+    if (!body.success) return reply.code(400).send({ error: 'Corps invalide' });
+    const b = body.data;
+    return resetGlobal(repo, { runs: b.runs, failedOnly: b.failed_only, notifications: b.notifications, queue: b.queue });
   });
 
   app.get('/api/notifications', async () => ({ notifications: repo.listNotifications(50) }));

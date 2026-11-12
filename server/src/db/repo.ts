@@ -238,6 +238,20 @@ export class Repo {
   deleteRun(id: string): void {
     this.db.prepare('DELETE FROM runs WHERE id = ?').run(id);
   }
+  /** Runs terminés (jamais ceux en cours ou en file), filtrables par script et par statuts : base des remises à zéro. */
+  finishedRuns(opts: { slug?: string; statuses?: string[] } = {}): RunRow[] {
+    const where = [`status NOT IN ('running','queued')`];
+    const args: unknown[] = [];
+    if (opts.slug) {
+      where.push('script_slug = ?');
+      args.push(opts.slug);
+    }
+    if (opts.statuses?.length) {
+      where.push(`status IN (${opts.statuses.map(() => '?').join(',')})`);
+      args.push(...opts.statuses);
+    }
+    return this.db.prepare(`SELECT * FROM runs WHERE ${where.join(' AND ')} ORDER BY created_at ASC`).all(...(args as never[])) as unknown as RunRow[];
+  }
   runStats(): { total: number; running: number; failed24h: number; success24h: number } {
     const since = new Date(Date.now() - 86400_000).toISOString();
     const g = (sql: string, ...a: unknown[]) => (this.db.prepare(sql).get(...(a as never[])) as { c: number }).c;
@@ -334,5 +348,12 @@ export class Repo {
   }
   listNotifications(limit = 50): unknown[] {
     return this.db.prepare('SELECT * FROM notifications ORDER BY id DESC LIMIT ?').all(limit);
+  }
+  clearNotifications(slug?: string): number {
+    if (slug) return this.db.prepare('DELETE FROM notifications WHERE script_slug = ?').run(slug).changes as number;
+    return this.db.prepare('DELETE FROM notifications').run().changes as number;
+  }
+  clearQueueAll(): number {
+    return this.db.prepare('DELETE FROM queue').run().changes as number;
   }
 }

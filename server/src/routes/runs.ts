@@ -2,6 +2,7 @@
 import type { FastifyInstance } from 'fastify';
 import fsp from 'node:fs/promises';
 import { readLogSlice } from '../services/logs.js';
+import { parseStatusFilter, purgeRuns } from '../services/reset.js';
 import { bus } from '../core/events.js';
 import { z } from 'zod';
 
@@ -54,6 +55,12 @@ export async function registerRunRoutes(app: FastifyInstance): Promise<void> {
     const r = orchestrator.stopRun(id);
     if (!r.ok) return reply.code(409).send({ error: r.reason });
     return { ok: true };
+  });
+
+  /** Efface l'historique terminé : tout, un script (?slug=), ou certains statuts (?status=failed | a,b,c). */
+  app.delete('/api/runs', async (req) => {
+    const q = req.query as Record<string, string | undefined>;
+    return purgeRuns(repo, { slug: q.slug || undefined, statuses: parseStatusFilter(q.status) });
   });
 
   app.delete('/api/runs/:id', async (req, reply) => {

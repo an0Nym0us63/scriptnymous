@@ -10,6 +10,7 @@ import { config } from '../config.js';
 import { parseSpec, SpecError, validateSpec, type ScriptSpec } from '../core/spec.js';
 import { nextOccurrences, ScheduleError } from '../core/schedule.js';
 import { readLogSlice } from '../services/logs.js';
+import { parseStatusFilter, purgeRuns, resetAppData, resetGlobal } from '../services/reset.js';
 import { suggestFromCode, suggestFromLog } from '../core/deps-suggest.js';
 import { configPath } from '../routes/variables.js';
 import type { ParamValues } from '../core/params.js';
@@ -295,6 +296,25 @@ export function buildMcpServer(services: Services): McpServer {
     } catch (e) {
       return fail((e as Error).message);
     }
+  });
+
+  server.registerTool('reset_app_data', { title: 'Remettre à zéro une mini-app', description: 'Vide les tables de la mini-app d’un script (toutes, ou celles nommées) et, sur demande, son dossier de fichiers. Irréversible.', inputSchema: { slug: z.string(), tables: z.array(z.string()).optional(), files: z.boolean().default(false), confirm: z.literal(true).describe('Doit valoir true') } }, async ({ slug, tables, files }) => {
+    const s = repo.getScript(slug);
+    if (!s) return fail('Script inconnu');
+    try {
+      return text(await resetAppData(appdb, slug, s.spec.app, { tables, files }));
+    } catch (e) {
+      return fail((e as Error).message);
+    }
+  });
+
+  // ---------- historique et statistiques ----------
+  server.registerTool('purge_runs', { title: 'Effacer l’historique des lancements', description: 'Supprime des runs terminés et leurs journaux : tout, un script (slug), ou certains statuts (status = "failed" pour tous les échecs, ou "a,b,c"). Les runs en cours sont conservés. Irréversible.', inputSchema: { slug: z.string().optional(), status: z.string().optional(), confirm: z.literal(true).describe('Doit valoir true') } }, async ({ slug, status }) => {
+    if (slug && !repo.getScript(slug)) return fail('Script inconnu');
+    return text(await purgeRuns(repo, { slug, statuses: parseStatusFilter(status) }));
+  });
+  server.registerTool('reset_stats', { title: 'Remise à zéro globale', description: 'Efface l’historique des lancements (tout ou seulement les échecs), les notifications et la file d’attente, selon les options. Irréversible.', inputSchema: { runs: z.boolean().default(true), failed_only: z.boolean().default(false), notifications: z.boolean().default(true), queue: z.boolean().default(false), confirm: z.literal(true).describe('Doit valoir true') } }, async ({ runs, failed_only, notifications, queue }) => {
+    return text(await resetGlobal(repo, { runs, failedOnly: failed_only, notifications, queue }));
   });
 
   // ---------- réglages ----------

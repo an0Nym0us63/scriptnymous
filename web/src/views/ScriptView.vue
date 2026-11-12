@@ -136,6 +136,33 @@ async function clearQueue(): Promise<void> {
   await api.del(`/api/scripts/${encodeURIComponent(slug.value)}/queue`);
   await load();
 }
+/** Efface l'historique des runs de ce script (tout, ou seulement les échecs) : journaux compris, runs en cours conservés. */
+async function purgeHistory(failedOnly: boolean): Promise<void> {
+  const what = failedOnly ? 'les échecs' : 'tout l’historique';
+  if (!confirm(`Effacer ${what} de « ${script.value?.name} » ? Les journaux correspondants sont supprimés, les runs en cours conservés.`)) return;
+  try {
+    const r = await api.del<{ removed: number }>(`/api/runs?slug=${encodeURIComponent(slug.value)}${failedOnly ? '&status=failed' : ''}`);
+    app.toast('ok', 'Historique effacé', `${r.removed} run(s) supprimé(s)`);
+    await load();
+  } catch (e) {
+    app.toast('err', 'Effacement impossible', (e as Error).message);
+  }
+}
+const appKey = ref(0);
+/** Vide les tables de la mini-app (les fichiers de données sont conservés). */
+async function resetAppData(): Promise<void> {
+  const tables = Object.keys(script.value?.spec.app?.tables ?? {});
+  if (!confirm(`Remettre à zéro les données de « ${script.value?.spec.app?.title || script.value?.name} » ?\nTables vidées : ${tables.join(', ')}.\nLes fichiers (vignettes, captures…) sont conservés ; le script repartira comme au premier passage.`)) return;
+  try {
+    const r = await api.del<{ tables: Record<string, number> }>(`/api/scripts/${encodeURIComponent(slug.value)}/app`);
+    const n = Object.values(r.tables).reduce((a, b) => a + b, 0);
+    app.toast('ok', 'Données remises à zéro', `${n} ligne(s) supprimée(s)`);
+    appKey.value++;
+    await load();
+  } catch (e) {
+    app.toast('err', 'Remise à zéro impossible', (e as Error).message);
+  }
+}
 </script>
 
 <template>
@@ -180,8 +207,12 @@ async function clearQueue(): Promise<void> {
 
     <!-- Mini-app / Suivi -->
     <div v-if="tab === 'app' && script.spec.app">
-      <iframe v-if="appPageUrl" :src="appPageUrl" class="w-full rounded-2xl border border-border bg-bg-elev" style="height: 75vh" title="Sous-app du script" />
-      <AppPanel v-else :slug="script.slug" :app="script.spec.app" />
+      <iframe v-if="appPageUrl" :key="appKey" :src="appPageUrl" class="w-full rounded-2xl border border-border bg-bg-elev" style="height: 75vh" title="Sous-app du script" />
+      <AppPanel v-else :key="appKey" :slug="script.slug" :app="script.spec.app" />
+      <div class="mt-3 flex items-center justify-end gap-3 text-xs text-muted">
+        <span>{{ Object.keys(script.spec.app.tables).length }} table(s) de suivi</span>
+        <button type="button" class="btn-soft text-err" @click="resetAppData"><Trash2 class="h-4 w-4" /> Remettre à zéro les données</button>
+      </div>
     </div>
 
     <!-- Aperçu -->
@@ -232,7 +263,12 @@ async function clearQueue(): Promise<void> {
           </tr>
         </tbody>
       </table>
-      <div class="px-4 py-2.5 border-t border-border text-xs"><RouterLink :to="`/runs?slug=${script.slug}`" class="text-accent-2 hover:underline">Tout l'historique →</RouterLink></div>
+      <div class="px-4 py-2.5 border-t border-border text-xs flex flex-wrap items-center gap-3">
+        <RouterLink :to="`/runs?slug=${script.slug}`" class="text-accent-2 hover:underline">Tout l'historique →</RouterLink>
+        <span class="flex-1" />
+        <button v-if="runs.length" type="button" class="text-muted hover:text-err" @click="purgeHistory(true)">Effacer les échecs</button>
+        <button v-if="runs.length" type="button" class="text-muted hover:text-err" @click="purgeHistory(false)">Effacer tout l'historique</button>
+      </div>
     </div>
 
     <!-- Planifications -->

@@ -33,6 +33,7 @@ dans Réglages). Toutes les réponses sont en JSON ; une erreur renvoie `{ "erro
 | POST    | `/api/scripts/:slug/run`            | lance : `{ params: {...} }` ou multipart (champs + fichiers)                |
 | POST    | `/api/scripts/:slug/env/rebuild`    | reconstruit l'environnement de dépendances                                  |
 | DELETE  | `/api/scripts/:slug/queue`          | vide la file d'attente du script                                            |
+| DELETE  | `/api/scripts/:slug/app`            | remet à zéro les tables de la mini-app (`?tables=a,b` pour certaines, `?files=1` pour aussi vider le dossier de fichiers) |
 | GET     | `/api/groups`                       | `{ groups: [...] }`                                                         |
 | GET     | `/api/browse?path=`                 | explorateur de `/scripts` (dossiers, fichiers, `declared`)                  |
 | GET     | `/api/browse/file?path=`            | contenu texte d'un fichier de `/scripts` (1 Mo max)                        |
@@ -70,6 +71,7 @@ curl -X POST https://scripts.exemple.fr/api/scripts/hello-bash/run \
 | POST    | `/api/runs/:id/stop`           | SIGTERM puis SIGKILL après le délai de grâce                       |
 | POST    | `/api/runs/:id/notify`         | notification ntfy au nom du script : `{ title?, message, tags?, priority?, file?, click? }` ; accepte aussi le jeton de run `SN_RUN_TOKEN` |
 | DELETE  | `/api/runs/:id`                | supprime le run et son journal                                     |
+| DELETE  | `/api/runs`                    | efface l'historique terminé : `?slug=` (un script), `?status=failed` (tous les échecs) ou `?status=a,b` ; journaux supprimés, runs en cours conservés → `{ removed }` |
 | GET     | `/api/queue`                   | file d'attente globale                                             |
 | DELETE  | `/api/queue/:id`               | retire un élément de la file                                       |
 
@@ -99,6 +101,7 @@ Le fichier est choisi par le réglage `variables_file` (relatif à `/scripts`, `
 | PUT     | `/api/settings`              | champs : `ntfy_server`, `ntfy_topic`, `ntfy_token` (`null` efface), `public_url`, `log_retention_days`, `log_max_mb`, `orphan_policy`, `timezone`, `variables_file` |
 | POST    | `/api/settings/ntfy/test`    | envoie une notification de test                               |
 | POST    | `/api/settings/purge`        | purge immédiate des journaux                                  |
+| POST    | `/api/settings/reset`        | remise à zéro : `{ runs?, failed_only?, notifications?, queue? }` → nombres supprimés |
 | GET     | `/api/notifications`         | 50 dernières notifications envoyées (diagnostic)              |
 
 ## Websocket `/api/ws`

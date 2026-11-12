@@ -52,6 +52,10 @@ Claude Desktop (ou tout client acceptant une configuration JSON de serveurs HTTP
 | `list_schedules` / `preview_schedule` | planifications et prochaines occurrences d'un cron                        |
 | `get_variables` / `set_variable` / `delete_variable` | fichier JSON partagé, par chemin pointé (`A.B.0.c`)        |
 | `get_settings` / `update_settings` / `test_ntfy` | réglages globaux                                               |
+| `app_tables` / `app_query` / `app_upsert` / `app_delete` | tables de la mini-app d'un script                      |
+| `reset_app_data`         | vide les tables d'une mini-app (`tables` facultatif, `files` pour le dossier de fichiers, `confirm: true`) |
+| `purge_runs`             | efface l'historique terminé : `slug` et/ou `status` (`failed` = tous les échecs), `confirm: true` |
+| `reset_stats`            | remise à zéro globale : `runs`, `failed_only`, `notifications`, `queue`, `confirm: true`        |
 
 Les secrets (paramètres `secret`, variables dont la clé évoque un mot de passe ou un jeton, jeton ntfy) sont masqués
 dans les réponses sauf demande explicite (`get_variables` avec `reveal: true`).

@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { AppDbError, appFilesDir } from '../core/appdb.js';
 import { bus } from '../core/events.js';
 import { ensureDir } from '../util/fs.js';
+import { resetAppData } from '../services/reset.js';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.mjs': 'application/javascript; charset=utf-8',
@@ -146,6 +147,19 @@ export async function registerAppRoutes(app: FastifyInstance): Promise<void> {
       return { removed };
     } catch (e) {
       return onError(e, reply);
+    }
+  });
+
+  /** Remise à zéro des données de la mini-app : toutes les tables (ou ?tables=a,b) et, avec ?files=1, le dossier de fichiers. */
+  app.delete('/api/scripts/:slug/app', async (req, reply) => {
+    const { slug } = req.params as { slug: string };
+    const s = script(slug, reply);
+    if (!s || !guard(req, reply, slug)) return;
+    const q = req.query as Record<string, string | undefined>;
+    try {
+      return await resetAppData(appdb, slug, s.spec.app, { tables: q.tables ? q.tables.split(',').filter(Boolean) : undefined, files: q.files === '1' || q.files === 'true' });
+    } catch (e) {
+      return reply.code(400).send({ error: (e as Error).message });
     }
   });
 
