@@ -27,7 +27,7 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
+  <div class="min-h-full h-full overflow-y-auto overflow-x-hidden flex items-center justify-center p-6 relative">
     <div class="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
     <div class="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-info/10 blur-3xl" />
     <div class="card w-full max-w-sm p-8 relative">

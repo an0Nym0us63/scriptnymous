@@ -42,7 +42,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="showShell" class="min-h-full md:flex">
+  <!-- Mobile : coque plein écran (en-tête + contenu défilant + menu bas) ; desktop : page classique avec barre latérale collante. -->
+  <div v-if="showShell" class="h-full md:h-auto md:min-h-full md:flex">
     <!-- Barre latérale (desktop) -->
     <aside class="hidden md:flex md:w-64 shrink-0 flex-col border-r border-border bg-bg-elev sticky top-0 h-screen">
       <RouterLink to="/" class="flex items-center gap-3 px-5 h-16 border-b border-border">
@@ -83,8 +84,8 @@ onMounted(() => {
     </aside>
 
     <!-- Contenu -->
-    <div class="flex-1 min-w-0 flex flex-col">
-      <header class="md:hidden sticky top-0 z-20 flex items-center gap-3 px-4 h-14 border-b border-border bg-bg-elev/90 backdrop-blur">
+    <div class="flex-1 min-w-0 flex flex-col h-full md:h-auto">
+      <header class="md:hidden shrink-0 z-20 flex items-center gap-3 px-4 h-14 border-b border-border bg-bg-elev/90 backdrop-blur" style="padding-top: env(safe-area-inset-top)">
         <RouterLink to="/" class="flex items-center gap-2"><img src="/favicon.svg" alt="" class="h-7 w-7" /><span class="font-semibold">ScriptNymous</span></RouterLink>
         <span class="flex-1" />
         <span class="h-2 w-2 rounded-full" :class="wsConnected ? 'bg-ok' : 'bg-warn'" />
@@ -96,18 +97,20 @@ onMounted(() => {
         <button class="btn-icon btn-ghost" @click="app.logout()"><LogOut class="h-4 w-4" /></button>
       </header>
 
-      <main class="flex-1 px-4 md:px-8 py-5 md:py-8 pb-24 md:pb-10 max-w-7xl w-full mx-auto">
-        <div v-if="!scripts.dirAvailable && scripts.loaded" class="mb-5 card border-warn/40 bg-warn-soft px-4 py-3 text-sm text-warn flex items-center gap-3">
-          <span class="font-semibold">Dossier des scripts inaccessible.</span>
-          <span class="text-text-2">Le partage n'est pas monté ou est vide : les scripts connus passent en « introuvable » et leurs planifications sont suspendues. Rien n'est supprimé.</span>
+      <main class="app-main flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden md:overflow-visible">
+        <div class="px-4 md:px-8 py-5 md:py-8 pb-8 md:pb-10 max-w-7xl w-full mx-auto min-w-0">
+          <div v-if="!scripts.dirAvailable && scripts.loaded" class="mb-5 card border-warn/40 bg-warn-soft px-4 py-3 text-sm text-warn flex items-center gap-3">
+            <span class="font-semibold">Dossier des scripts inaccessible.</span>
+            <span class="text-text-2">Le partage n'est pas monté ou est vide : les scripts connus passent en « introuvable » et leurs planifications sont suspendues. Rien n'est supprimé.</span>
+          </div>
+          <RouterView v-slot="{ Component }">
+            <Transition name="fade" mode="out-in"><component :is="Component" /></Transition>
+          </RouterView>
         </div>
-        <RouterView v-slot="{ Component }">
-          <Transition name="fade" mode="out-in"><component :is="Component" /></Transition>
-        </RouterView>
       </main>
 
-      <!-- Navigation basse (mobile) -->
-      <nav class="md:hidden fixed bottom-0 inset-x-0 z-20 border-t border-border bg-bg-elev/95 backdrop-blur flex" style="padding-bottom: env(safe-area-inset-bottom)">
+      <!-- Navigation basse (mobile) : bloc de la coque, toujours visible, jamais recouvert ni décalé -->
+      <nav class="md:hidden shrink-0 z-20 border-t border-border bg-bg-elev/95 backdrop-blur flex" style="padding-bottom: env(safe-area-inset-bottom)">
         <RouterLink
           v-for="item in nav"
           :key="item.to"

@@ -212,7 +212,7 @@ async function resetAppData(): Promise<void> {
         <span class="flex-1" />
         <button type="button" class="btn-soft" @click="resetAppData"><Trash2 class="h-4 w-4 text-err" /> Nettoyer les données de cette app</button>
       </div>
-      <iframe v-if="appPageUrl" :key="appKey" :src="appPageUrl" class="w-full rounded-2xl border border-border bg-bg-elev" style="height: 75vh" title="Sous-app du script" />
+      <iframe v-if="appPageUrl" :key="appKey" :src="appPageUrl" class="w-full rounded-2xl border border-border bg-bg-elev" style="height: 75vh; height: 75dvh" title="Sous-app du script" />
       <AppPanel v-else :key="appKey" :slug="script.slug" :app="script.spec.app" />
     </div>
 
