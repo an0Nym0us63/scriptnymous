@@ -8,12 +8,13 @@ import { ArrowLeft, Plus, Trash2, Save, GripVertical, Wand2, FolderOpen } from '
 import { api, ApiError, type ScriptDetail, type ScriptSpec, type ParamSpec, type ScheduleSpec } from '@/lib/api';
 import { useApp } from '@/stores/app';
 import { useScripts } from '@/stores/scripts';
-import { CONCURRENCY, describeCron, fmtDateShort, NOTIFY_EVENTS } from '@/lib/format';
+import { CONCURRENCY, fmtDateShort, NOTIFY_EVENTS } from '@/lib/format';
 import AppIcon from '@/components/AppIcon.vue';
 import CodeEditor from '@/components/CodeEditor.vue';
 import ParamForm from '@/components/ParamForm.vue';
 import FileBrowser from '@/components/FileBrowser.vue';
 import DepSuggestions, { type Suggestion } from '@/components/DepSuggestions.vue';
+import CronBuilder from '@/components/CronBuilder.vue';
 const IconPicker = defineAsyncComponent(() => import('@/components/IconPicker.vue'));
 const pickingIcon = ref(false);
 
@@ -390,9 +391,8 @@ function applyYamlToForm(): void {
         </div>
         <div class="grid gap-3 md:grid-cols-3">
           <div class="md:col-span-2">
-            <label class="label">Expression cron (min heure jour mois jour-semaine)</label>
-            <input v-model="s.cron" class="input font-mono" @input="preview(s)" />
-            <div class="text-xs text-muted mt-1">{{ describeCron(s.cron) }}</div>
+            <label class="label">Quand</label>
+            <CronBuilder :model-value="s.cron" @update:model-value="s.cron = $event; preview(s)" />
           </div>
           <div><label class="label">Fuseau</label><input v-model="s.timezone" class="input" placeholder="défaut global" @input="preview(s)" /></div>
           <div><label class="label">Décalage aléatoire max (s)</label><input v-model.number="s.jitter_seconds" type="number" min="0" class="input" /></div>
