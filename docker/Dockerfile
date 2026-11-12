@@ -8,7 +8,7 @@ WORKDIR /src
 COPY package.json package-lock.json ./
 COPY web/package.json web/
 COPY server/package.json server/
-RUN npm ci --no-audit --no-fund --workspace web --include-workspace-root
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund --workspace web --include-workspace-root
 COPY web/ web/
 RUN npm run build -w web
 
@@ -18,7 +18,7 @@ WORKDIR /src
 COPY package.json package-lock.json ./
 COPY web/package.json web/
 COPY server/package.json server/
-RUN npm ci --no-audit --no-fund --workspace server --include-workspace-root
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund --workspace server --include-workspace-root
 COPY server/ server/
 RUN npm run build -w server \
  && npm prune --omit=dev --workspace server --include-workspace-root

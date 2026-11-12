@@ -1,10 +1,16 @@
-# Tests puis construction de l'image et publication sur ghcr.io à chaque poussée sur main.
+# Tests et construction de l'image en parallèle ; `latest` n'est posé (et Portainer prévenu) qu'une fois les tests verts.
 # Déploiement Portainer facultatif : définir le secret PORTAINER_WEBHOOK_URL dans le dépôt.
 name: Build & Push
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'examples/**'
+      - '.gitattributes'
+      - '.env.example'
   pull_request:
   workflow_dispatch:
 
@@ -28,10 +34,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - run: npm test
-      - run: npm run build -w web
 
   build:
-    needs: test
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -39,36 +43,39 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest
-            type=sha,prefix=
-
       - uses: docker/setup-buildx-action@v3
-
+      # Image poussée avec le SHA du commit uniquement ; `latest` suit dans le job de publication.
       - uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # Cache des couches entre deux builds : le socle apt et uv ne sont pas refaits à chaque fois.
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          # Cache des couches entre deux builds : le socle apt, uv et les node_modules ne sont refaits que si nécessaire.
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false
 
+  publish:
+    needs: [test, build]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Poser le tag latest (re-tag côté registre, sans nouvel envoi)
+        run: docker buildx imagetools create -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
       - name: Deploy to Portainer
-        if: success()
         env:
           WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK_URL }}
         run: |
