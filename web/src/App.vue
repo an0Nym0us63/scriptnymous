@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { LayoutDashboard, History, CalendarClock, Settings, Sun, Moon, LogOut, Plus, Wifi, WifiOff } from 'lucide-vue-next';
+import { LayoutDashboard, History, CalendarClock, Settings, Sun, Moon, LogOut, Plus, Wifi, WifiOff, Activity } from 'lucide-vue-next';
 import { useApp } from '@/stores/app';
 import { useScripts } from '@/stores/scripts';
 import { wsConnected } from '@/lib/ws';
 import Toasts from '@/components/Toasts.vue';
+const ActivityPanel = defineAsyncComponent(() => import('@/components/ActivityPanel.vue'));
+const activityOpen = ref(false);
 
 const app = useApp();
 const scripts = useScripts();
@@ -59,8 +61,12 @@ onMounted(() => {
         >
           <component :is="item.icon" class="h-[18px] w-[18px]" />
           {{ item.label }}
-          <span v-if="item.to === '/' && scripts.running.length" class="ml-auto chip bg-accent-soft text-accent-2">{{ scripts.running.length }}</span>
         </RouterLink>
+        <button class="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition text-text-2 hover:bg-surface-2 hover:text-text" @click="activityOpen = true">
+          <Activity class="h-[18px] w-[18px]" :class="scripts.activityCount ? 'text-accent-2' : ''" />
+          Activité
+          <span v-if="scripts.activityCount" class="ml-auto chip bg-accent-soft text-accent-2"><span class="h-1.5 w-1.5 rounded-full bg-current live-dot" /> {{ scripts.activityCount }}</span>
+        </button>
         <RouterLink to="/scripts/new" class="btn-primary w-full mt-4"><Plus class="h-4 w-4" /> Nouveau script</RouterLink>
       </nav>
       <div class="px-3 py-3 border-t border-border flex items-center gap-1">
@@ -81,6 +87,10 @@ onMounted(() => {
         <RouterLink to="/" class="flex items-center gap-2"><img src="/favicon.svg" alt="" class="h-7 w-7" /><span class="font-semibold">ScriptNymous</span></RouterLink>
         <span class="flex-1" />
         <span class="h-2 w-2 rounded-full" :class="wsConnected ? 'bg-ok' : 'bg-warn'" />
+        <button class="btn-icon btn-ghost relative" @click="activityOpen = true">
+          <Activity class="h-4 w-4" :class="scripts.activityCount ? 'text-accent-2' : ''" />
+          <span v-if="scripts.activityCount" class="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-accent text-white text-[10px] leading-4 text-center">{{ scripts.activityCount }}</span>
+        </button>
         <button class="btn-icon btn-ghost" @click="app.toggleTheme()"><component :is="app.theme === 'dark' ? Sun : Moon" class="h-4 w-4" /></button>
         <button class="btn-icon btn-ghost" @click="app.logout()"><LogOut class="h-4 w-4" /></button>
       </header>
@@ -110,5 +120,6 @@ onMounted(() => {
     </div>
   </div>
   <RouterView v-else />
+  <ActivityPanel v-if="activityOpen" @close="activityOpen = false" />
   <Toasts />
 </template>

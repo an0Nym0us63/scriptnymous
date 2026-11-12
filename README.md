@@ -20,7 +20,9 @@ Remplaçant personnel de script-server, dans la lignée de BambuNymous.
 - **Robustesse** : politique si une instance tourne encore (`skip`, `queue`, `kill`, `parallel`), retries exponentiels par
   code de sortie, délai maximum (SIGTERM puis SIGKILL), rapprochement avec `/proc` au démarrage, balayage des processus
   fantômes, file d'attente persistante.
-- **Dépendances sans reconstruire l'image** : `apt` (à chaud), `pip` (venv `uv` par script), `npm`, binaires téléchargés.
+- **Dépendances sans reconstruire l'image** : `apt` (à chaud), `pip` (venv `uv` par script), `npm`, binaires téléchargés ;
+  suggestions automatiques d'après le code et les journaux d'échec (`No module named 'PIL'` → `pillow`), ajout en un clic.
+- **Panneau Activité** : installations d'environnement en cours avec leur journal, runs en cours, file d'attente et retries à venir.
 - **Notifications ntfy** par événement (début, succès, échec, échec définitif, instance déjà en cours, script introuvable,
   processus perdu), priorité, étiquettes, lien vers le run.
 - **Interface** Vue 3 + Tailwind : thème sombre et clair, mobile, PWA, tableau de bord par groupe, page de run,

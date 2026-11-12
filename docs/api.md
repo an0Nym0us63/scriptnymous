@@ -72,6 +72,13 @@ curl -X POST https://scripts.exemple.fr/api/scripts/hello-bash/run \
 | GET     | `/api/queue`                   | file d'attente globale                                             |
 | DELETE  | `/api/queue/:id`               | retire un élément de la file                                       |
 
+## Activité et suggestions
+
+| Méthode | Route                 | Description                                                                              |
+| ------- | --------------------- | ---------------------------------------------------------------------------------------- |
+| GET     | `/api/activity`       | installations d'environnement en cours, runs en cours, file d'attente et retries différés |
+| POST    | `/api/deps/suggest`   | `{ interpreter?, code?, log? }` → `{ suggestions: [{ kind, package, reason, fromError }] }` |
+
 ## Réglages
 
 | Méthode | Route                        | Description                                                   |

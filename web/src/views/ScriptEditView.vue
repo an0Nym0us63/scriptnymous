@@ -13,6 +13,7 @@ import AppIcon from '@/components/AppIcon.vue';
 import CodeEditor from '@/components/CodeEditor.vue';
 import ParamForm from '@/components/ParamForm.vue';
 import FileBrowser from '@/components/FileBrowser.vue';
+import DepSuggestions, { type Suggestion } from '@/components/DepSuggestions.vue';
 const IconPicker = defineAsyncComponent(() => import('@/components/IconPicker.vue'));
 const pickingIcon = ref(false);
 
@@ -232,6 +233,16 @@ async function pickFile(rel: string): Promise<void> {
   } catch (e) {
     app.toast('warn', 'Code non chargé', (e as Error).message);
   }
+}
+
+// ---- Suggestions de dépendances ----
+const existingDeps = computed(() => ({ pip: lines(depsText.pip), npm: lines(depsText.npm), apt: lines(depsText.apt) }));
+function addDep(sg: Suggestion): void {
+  const cur = lines(depsText[sg.kind]);
+  if (!cur.includes(sg.package)) depsText[sg.kind] = [...cur, sg.package].join('\n');
+}
+function addDeps(list: Suggestion[]): void {
+  for (const sg of list) addDep(sg);
 }
 
 // ---- Enregistrement ----
@@ -462,6 +473,7 @@ function applyYamlToForm(): void {
 
     <!-- Dépendances -->
     <div v-show="tab === 'deps'" class="space-y-4">
+      <DepSuggestions :interpreter="mode === 'interpreter' ? spec.interpreter : undefined" :code="code" :existing="existingDeps" @add="addDep" @add-all="addDeps" />
       <div class="card p-5 grid gap-4 md:grid-cols-3">
         <div><label class="label">Paquets apt</label><textarea v-model="depsText.apt" class="input font-mono h-32" placeholder="rsync&#10;ffmpeg" /></div>
         <div><label class="label">Paquets pip (venv dédié)</label><textarea v-model="depsText.pip" class="input font-mono h-32" placeholder="requests>=2.31&#10;rich" /></div>

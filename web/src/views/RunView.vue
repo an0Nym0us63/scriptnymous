@@ -8,6 +8,8 @@ import { useApp } from '@/stores/app';
 import { duration, fmtDate, TRIGGER } from '@/lib/format';
 import StatusBadge from '@/components/StatusBadge.vue';
 import LogViewer from '@/components/LogViewer.vue';
+import DepSuggestions, { type Suggestion } from '@/components/DepSuggestions.vue';
+import type { ScriptDetail } from '@/lib/api';
 
 const route = useRoute();
 const router = useRouter();
@@ -19,6 +21,42 @@ let tick: number;
 let unsub: (() => void) | null = null;
 
 const id = computed(() => route.params.id as string);
+// Journal d'un run échoué, pour proposer les dépendances manquantes.
+const failLog = ref<string | null>(null);
+const scriptDeps = ref<{ pip: string[]; npm: string[]; apt: string[] }>({ pip: [], npm: [], apt: [] });
+const scriptInterpreter = ref<string | undefined>();
+watch(
+  () => run.value?.status,
+  async (st) => {
+    if (st !== 'failed') return void (failLog.value = null);
+    try {
+      const [log, script] = await Promise.all([
+        api.get<{ text: string }>(`/api/runs/${id.value}/log?tail=1&max=65536`),
+        api.get<ScriptDetail>(`/api/scripts/${encodeURIComponent(run.value!.script_slug)}`),
+      ]);
+      scriptDeps.value = { pip: script.spec.deps.pip, npm: script.spec.deps.npm, apt: script.spec.deps.apt };
+      scriptInterpreter.value = script.spec.interpreter;
+      failLog.value = log.text;
+    } catch {
+      failLog.value = null;
+    }
+  },
+  { immediate: true },
+);
+async function addDeps(list: Suggestion[]): Promise<void> {
+  if (!run.value) return;
+  try {
+    const slug = run.value.script_slug;
+    const script = await api.get<ScriptDetail>(`/api/scripts/${encodeURIComponent(slug)}`);
+    const deps = { ...script.spec.deps };
+    for (const sg of list) if (!deps[sg.kind].includes(sg.package)) deps[sg.kind] = [...deps[sg.kind], sg.package];
+    await api.put(`/api/scripts/${encodeURIComponent(slug)}`, { spec: { ...script.spec, deps }, code: null });
+    app.toast('ok', 'Dépendances ajoutées', 'L’environnement se prépare ; relancez le script quand il est prêt.', `/scripts/${slug}?tab=env`);
+    scriptDeps.value = { pip: deps.pip, npm: deps.npm, apt: deps.apt };
+  } catch (e) {
+    app.toast('err', 'Ajout impossible', (e as Error).message);
+  }
+}
 const params = computed(() => {
   try {
     return Object.entries(JSON.parse(run.value?.params_json || '{}') as Record<string, unknown>);
@@ -101,6 +139,9 @@ async function remove(): Promise<void> {
     </div>
 
     <div v-if="run.error" class="mb-4 card border-err/40 bg-err-soft px-4 py-3 text-sm text-err">{{ run.error }}</div>
+    <div v-if="failLog" class="mb-4">
+      <DepSuggestions :interpreter="scriptInterpreter" :log="failLog" :existing="scriptDeps" compact @add="(s) => addDeps([s])" @add-all="addDeps" />
+    </div>
     <div v-if="run.parent_run_id" class="mb-4 text-sm text-muted">Nouvel essai du run <RouterLink :to="`/runs/${run.parent_run_id}`" class="font-mono text-accent-2 hover:underline">{{ run.parent_run_id }}</RouterLink>.</div>
 
     <div v-if="params.length" class="mb-4 flex flex-wrap gap-2">
