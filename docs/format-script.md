@@ -10,8 +10,11 @@ Chaque script vit dans son propre dossier sous `/scripts/` :
     └── …                       ← tout autre fichier utile (le dossier est le répertoire de travail par défaut)
 ```
 
-Le slug accepte minuscules, chiffres, `-` et `_` (64 caractères maximum). Le bit d'exécution n'est pas nécessaire :
-ScriptNymous appelle toujours l'interpréteur déclaré avec le fichier en argument.
+L'identifiant (slug) est le chemin du dossier relatif à `/scripts`. Les sous-dossiers sont autorisés jusqu'à 4 niveaux
+(`Photos/tri-doublons`), ainsi que les majuscules et les espaces : on peut adopter une arborescence existante sans la
+renommer. Interdits : `..`, les noms commençant par un point, les caractères `\ : * ? " < > |`. Un dossier déclaré
+(contenant `script.yaml`) n'est pas exploré plus bas : ses sous-dossiers lui appartiennent. Le bit d'exécution n'est pas
+nécessaire : ScriptNymous appelle toujours l'interpréteur déclaré avec le fichier en argument.
 
 Le dossier est surveillé (inotify) et relu périodiquement (toutes les 60 s par défaut, utile sur SMB/NFS où inotify ne
 fonctionne pas). Un fichier modifié est pris en compte sans redémarrage. L'édition depuis l'interface réécrit

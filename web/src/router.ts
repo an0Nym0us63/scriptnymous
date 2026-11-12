@@ -8,8 +8,9 @@ export const router = createRouter({
     { path: '/login', name: 'login', component: () => import('@/views/LoginView.vue'), meta: { public: true, title: 'Connexion' } },
     { path: '/', name: 'dashboard', component: () => import('@/views/DashboardView.vue'), meta: { title: 'Tableau de bord' } },
     { path: '/scripts/new', name: 'script-new', component: () => import('@/views/ScriptEditView.vue'), meta: { title: 'Nouveau script' } },
-    { path: '/scripts/:slug', name: 'script', component: () => import('@/views/ScriptView.vue'), meta: { title: 'Script' } },
-    { path: '/scripts/:slug/edit', name: 'script-edit', component: () => import('@/views/ScriptEditView.vue'), meta: { title: 'Édition' } },
+    // L'identifiant d'un script est un chemin de dossier (sous-dossiers autorisés) : il peut contenir des « / ».
+    { path: '/scripts/:slug(.+)/edit', name: 'script-edit', component: () => import('@/views/ScriptEditView.vue'), meta: { title: 'Édition' } },
+    { path: '/scripts/:slug(.+)', name: 'script', component: () => import('@/views/ScriptView.vue'), meta: { title: 'Script' } },
     { path: '/runs', name: 'runs', component: () => import('@/views/HistoryView.vue'), meta: { title: 'Historique' } },
     { path: '/runs/:id', name: 'run', component: () => import('@/views/RunView.vue'), meta: { title: 'Run' } },
     { path: '/schedules', name: 'schedules', component: () => import('@/views/SchedulesView.vue'), meta: { title: 'Planifications' } },

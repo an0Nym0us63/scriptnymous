@@ -168,7 +168,8 @@ export function stringifySpec(spec: ScriptSpec): string {
 }
 
 export function isValidSlug(slug: string): boolean {
-  return SLUG_RE.test(slug);
+  if (!SLUG_RE.test(slug)) return false;
+  return slug.split('/').every((seg) => seg !== '..' && seg.trim() === seg);
 }
 
 /** Empreinte des dépendances : recréer l'environnement seulement quand elle change. */

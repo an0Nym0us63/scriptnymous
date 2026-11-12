@@ -38,7 +38,7 @@ const tabs = [
 ];
 
 async function load(): Promise<void> {
-  script.value = await api.get<ScriptDetail>(`/api/scripts/${slug.value}`);
+  script.value = await api.get<ScriptDetail>(`/api/scripts/${encodeURIComponent(slug.value)}`);
   runs.value = (await api.get<{ runs: Run[] }>(`/api/runs?slug=${slug.value}&limit=20`)).runs;
 }
 function scheduleReload(): void {
@@ -84,7 +84,7 @@ async function launch(): Promise<void> {
       }
       body = fd;
     }
-    const r = await api.post<{ outcome: string; run?: Run; reason?: string }>(`/api/scripts/${slug.value}/run`, body);
+    const r = await api.post<{ outcome: string; run?: Run; reason?: string }>(`/api/scripts/${encodeURIComponent(slug.value)}/run`, body);
     if (r.outcome === 'started' && r.run) void router.push(`/runs/${r.run.id}`);
     else if (r.outcome === 'queued') app.toast('info', 'Mis en file', 'Une instance tourne encore.');
     else app.toast('warn', 'Lancement ignoré', r.reason);
@@ -102,24 +102,24 @@ async function stop(id: string): Promise<void> {
   }
 }
 async function rebuildEnv(): Promise<void> {
-  await api.post(`/api/scripts/${slug.value}/env/rebuild`);
+  await api.post(`/api/scripts/${encodeURIComponent(slug.value)}/env/rebuild`);
   app.toast('info', 'Reconstruction de l’environnement lancée');
 }
 async function toggleEnabled(): Promise<void> {
   if (!script.value) return;
-  await api.put(`/api/scripts/${slug.value}`, { spec: { ...script.value.spec, enabled: !script.value.spec.enabled }, code: null });
+  await api.put(`/api/scripts/${encodeURIComponent(slug.value)}`, { spec: { ...script.value.spec, enabled: !script.value.spec.enabled }, code: null });
   await load();
 }
 async function toggleSchedule(id: string): Promise<void> {
   if (!script.value) return;
   const spec = { ...script.value.spec, schedules: script.value.spec.schedules.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)) };
-  await api.put(`/api/scripts/${slug.value}`, { spec, code: null });
+  await api.put(`/api/scripts/${encodeURIComponent(slug.value)}`, { spec, code: null });
   await load();
 }
 async function remove(): Promise<void> {
   if (!confirm(`Supprimer définitivement le script « ${script.value?.name} » et son dossier ? Les runs passés sont conservés.`)) return;
   try {
-    await api.del(`/api/scripts/${slug.value}`);
+    await api.del(`/api/scripts/${encodeURIComponent(slug.value)}`);
     await scripts.load();
     void router.push('/');
   } catch (e) {
@@ -127,7 +127,7 @@ async function remove(): Promise<void> {
   }
 }
 async function clearQueue(): Promise<void> {
-  await api.del(`/api/scripts/${slug.value}/queue`);
+  await api.del(`/api/scripts/${encodeURIComponent(slug.value)}/queue`);
   await load();
 }
 </script>

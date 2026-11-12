@@ -32,7 +32,7 @@ async function launch(): Promise<void> {
       }
       body = fd;
     } else body = { params: values.value };
-    const r = await api.post<{ outcome: string; run?: Run; reason?: string }>(`/api/scripts/${props.script.slug}/run`, body);
+    const r = await api.post<{ outcome: string; run?: Run; reason?: string }>(`/api/scripts/${encodeURIComponent(props.script.slug)}/run`, body);
     if (r.outcome === 'started' && r.run) {
       emit('close');
       void router.push(`/runs/${r.run.id}`);

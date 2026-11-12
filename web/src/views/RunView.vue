@@ -60,7 +60,7 @@ async function relaunch(): Promise<void> {
   try {
     const p = JSON.parse(run.value.params_json || '{}') as Record<string, unknown>;
     for (const k of Object.keys(p)) if (p[k] === '••••••') delete p[k];
-    const r = await api.post<{ outcome: string; run?: Run; reason?: string }>(`/api/scripts/${run.value.script_slug}/run`, { params: p });
+    const r = await api.post<{ outcome: string; run?: Run; reason?: string }>(`/api/scripts/${encodeURIComponent(run.value.script_slug)}/run`, { params: p });
     if (r.outcome === 'started' && r.run) void router.push(`/runs/${r.run.id}`);
     else app.toast('warn', r.reason ?? r.outcome);
   } catch (e) {

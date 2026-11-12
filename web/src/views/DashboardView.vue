@@ -35,7 +35,7 @@ function onLaunch(s: ScriptItem): void {
 }
 async function quickLaunch(s: ScriptItem): Promise<void> {
   try {
-    const r = await api.post<{ outcome: string; reason?: string }>(`/api/scripts/${s.slug}/run`, { params: {} });
+    const r = await api.post<{ outcome: string; reason?: string }>(`/api/scripts/${encodeURIComponent(s.slug)}/run`, { params: {} });
     if (r.outcome === 'started') app.toast('ok', `${s.name} lancé`);
     else if (r.outcome === 'queued') app.toast('info', `${s.name} mis en file`);
     else app.toast('warn', `${s.name} : ${r.reason ?? r.outcome}`);

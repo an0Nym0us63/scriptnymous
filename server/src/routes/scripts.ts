@@ -73,7 +73,7 @@ export async function registerScriptRoutes(app: FastifyInstance): Promise<void> 
   /** Création ou mise à jour : soit `spec` (objet), soit `yaml` (texte brut) ; `code` facultatif. */
   app.put('/api/scripts/:slug', async (req, reply) => {
     const { slug } = req.params as { slug: string };
-    if (!isValidSlug(slug)) return reply.code(400).send({ error: 'Identifiant invalide : minuscules, chiffres, tirets' });
+    if (!isValidSlug(slug)) return reply.code(400).send({ error: 'Identifiant invalide : chemin de dossier relatif à /scripts (ex. Photos/tri), sans « .. »' });
     const body = SaveBody.safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: 'Corps invalide' });
     try {

@@ -12,6 +12,8 @@ import { parseSpec, SpecError, stringifySpec, type ScriptSpec, isValidSlug } fro
 import { ensureDir } from '../util/fs.js';
 
 export const YAML_NAME = 'script.yaml';
+export const MAX_DEPTH = 4;
+const SKIP_DIRS = new Set(['node_modules', 'venv', '.venv', '__pycache__', '#recycle', '@eaDir']);
 
 export interface RegistryHooks {
   onMissing?: (script: ScriptRecord) => void;
@@ -48,27 +50,20 @@ export class Registry {
       if (!this.dirAvailable()) {
         this.log.warn({ dir: config.scriptsDir }, 'Dossier des scripts introuvable : tous les scripts passent en « introuvable »');
       } else {
-        const entries = await fsp.readdir(config.scriptsDir, { withFileTypes: true });
-        for (const e of entries) {
-          if (!e.isDirectory() || e.name.startsWith('.')) continue;
-          if (!isValidSlug(e.name)) {
-            this.log.warn({ dir: e.name }, 'Dossier ignoré : le nom n’est pas un slug valide');
-            continue;
-          }
-          const yamlPath = path.join(config.scriptsDir, e.name, YAML_NAME);
+        for (const { slug, yamlPath } of await this.findDeclared(config.scriptsDir, '', 0)) {
           let st: fs.Stats;
           try {
             st = await fsp.stat(yamlPath);
           } catch {
-            continue; // dossier sans script.yaml : ignoré
-          }
-          seen.add(e.name);
-          const prev = known.get(e.name) ?? null;
-          if (prev && prev.status !== 'missing' && prev.yaml_mtime === Math.floor(st.mtimeMs)) {
-            this.repo.touchScriptSeen(e.name);
             continue;
           }
-          await this.loadOne(e.name, yamlPath, Math.floor(st.mtimeMs), prev);
+          seen.add(slug);
+          const prev = known.get(slug) ?? null;
+          if (prev && prev.status !== 'missing' && prev.yaml_mtime === Math.floor(st.mtimeMs)) {
+            this.repo.touchScriptSeen(slug);
+            continue;
+          }
+          await this.loadOne(slug, yamlPath, Math.floor(st.mtimeMs), prev);
         }
       }
       for (const [slug, s] of known) {
@@ -84,6 +79,33 @@ export class Registry {
     } finally {
       this.reloading = false;
     }
+  }
+
+  /**
+   * Dossiers contenant un script.yaml, à toute profondeur (MAX_DEPTH). On ne descend pas dans un dossier déclaré :
+   * ses sous-dossiers appartiennent au script. Les dossiers cachés et les environnements sont ignorés.
+   */
+  private async findDeclared(dir: string, rel: string, depth: number): Promise<{ slug: string; yamlPath: string }[]> {
+    const out: { slug: string; yamlPath: string }[] = [];
+    let entries: fs.Dirent[];
+    try {
+      entries = await fsp.readdir(dir, { withFileTypes: true });
+    } catch {
+      return out;
+    }
+    for (const e of entries) {
+      if (!e.isDirectory() || e.name.startsWith('.') || SKIP_DIRS.has(e.name)) continue;
+      const slug = rel ? `${rel}/${e.name}` : e.name;
+      if (!isValidSlug(slug)) {
+        this.log.warn({ dir: slug }, 'Dossier ignoré : nom invalide');
+        continue;
+      }
+      const sub = path.join(dir, e.name);
+      const yamlPath = path.join(sub, YAML_NAME);
+      if (fs.existsSync(yamlPath)) out.push({ slug, yamlPath });
+      else if (depth < MAX_DEPTH) out.push(...(await this.findDeclared(sub, slug, depth + 1)));
+    }
+    return out;
   }
 
   private async loadOne(slug: string, yamlPath: string, mtime: number, prev: ScriptRecord | null): Promise<void> {
@@ -138,7 +160,7 @@ export class Registry {
       try {
         this.watcher = chokidar.watch(config.scriptsDir, {
           ignoreInitial: true,
-          depth: 1,
+          depth: MAX_DEPTH + 1,
           awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
         });
         this.watcher.on('all', (ev, p) => {
@@ -183,7 +205,7 @@ export class Registry {
 
   /** Écrit la déclaration (et éventuellement le code) puis recharge ce script. */
   async save(slug: string, spec: ScriptSpec, code?: string | null, yamlText?: string | null): Promise<ScriptRecord> {
-    if (!isValidSlug(slug)) throw new SpecError('Identifiant (slug) invalide');
+    if (!isValidSlug(slug)) throw new SpecError('Identifiant invalide : chemin de dossier relatif à /scripts, sans « .. » ni caractères interdits');
     if (!this.dirAvailable()) throw new SpecError(`Le dossier des scripts ${config.scriptsDir} est inaccessible`);
     const dir = this.scriptDir(slug);
     ensureDir(dir);

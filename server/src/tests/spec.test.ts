@@ -113,3 +113,11 @@ describe('paramètres', () => {
     expect(() => resolveParams(s, {})).toThrow(/obligatoire/);
   });
 });
+
+describe('identifiants', () => {
+  it('accepte des chemins imbriqués, majuscules et espaces, refuse les chemins dangereux', async () => {
+    const { isValidSlug } = await import('../core/spec.js');
+    for (const ok of ['hello-bash', 'Photos', 'Photos/Tri doublons', 'a/b/c/d', 'sauvegarde_2026']) expect(isValidSlug(ok), ok).toBe(true);
+    for (const ko of ['', '../x', 'a/../b', '.cache', 'a//b', 'a/', '/a', 'a:b', 'a?b', ' a', 'a/ b']) expect(isValidSlug(ko), ko).toBe(false);
+  });
+});

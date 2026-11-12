@@ -86,7 +86,7 @@ function assign(src: ScriptSpec): void {
 
 onMounted(async () => {
   if (!isNew.value) {
-    const d = await api.get<ScriptDetail>(`/api/scripts/${slug.value}`);
+    const d = await api.get<ScriptDetail>(`/api/scripts/${encodeURIComponent(slug.value)}`);
     assign(d.spec);
     code.value = d.code;
     yamlText.value = d.yaml ?? '';
@@ -206,12 +206,15 @@ async function pickFile(rel: string): Promise<void> {
   browsing.value = false;
   const parts = rel.split('/');
   if (parts.length < 2) return app.toast('warn', 'Fichier à la racine', 'Placez le script dans son propre sous-dossier de /scripts.');
-  const folder = parts[0];
-  const file = parts.slice(1).join('/');
+  // Le script est le dossier qui contient le fichier ; les dossiers au-dessus forment le groupe proposé.
+  const folder = parts.slice(0, -1).join('/');
+  const file = parts[parts.length - 1];
   if (isNew.value) {
     slug.value = folder;
     slugTouched.value = true;
-    if (!spec.name) spec.name = folder.replace(/[-_]+/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+    const leaf = parts[parts.length - 2];
+    if (!spec.name) spec.name = leaf.replace(/[-_]+/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+    if (!spec.group && parts.length > 2) spec.group = parts.slice(0, -2).join(' / ');
   } else if (folder !== slug.value) {
     return app.toast('warn', 'Mauvais dossier', `Le fichier doit être dans /scripts/${slug.value}/.`);
   }
@@ -240,7 +243,7 @@ async function save(): Promise<void> {
     const body: Record<string, unknown> = { code: code.value };
     if (tab.value === 'yaml' && yamlDirty.value) body.yaml = yamlText.value;
     else body.spec = buildSpec();
-    await api.put(`/api/scripts/${slug.value}`, body);
+    await api.put(`/api/scripts/${encodeURIComponent(slug.value)}`, body);
     await scripts.load();
     app.toast('ok', isNew.value ? 'Script créé' : 'Script enregistré');
     void router.push(`/scripts/${slug.value}`);
@@ -286,9 +289,9 @@ function applyYamlToForm(): void {
       <div><label class="label">Nom</label><input v-model="spec.name" class="input" placeholder="Sauvegarde nocturne" required /></div>
       <div>
         <label class="label">Identifiant (dossier)</label>
-        <input v-model="slug" class="input font-mono" :disabled="!isNew" placeholder="sauvegarde-nocturne" @input="slugTouched = true" />
+        <input v-model="slug" class="input font-mono" :disabled="!isNew" placeholder="sauvegarde-nocturne ou Photos/tri-doublons" @input="slugTouched = true" />
         <div class="text-xs text-muted mt-1">
-          Dossier <span class="font-mono">/scripts/{{ slug || '…' }}/</span>, minuscules, chiffres et tirets.
+          Chemin du dossier du script : <span class="font-mono text-text-2">/scripts/{{ slug || '…' }}/{{ spec.file }}</span>. Sous-dossiers autorisés.
           <button v-if="isNew" type="button" class="ml-1 text-accent-2 hover:underline" @click="browsing = true">Choisir un script déjà présent sur le partage…</button>
         </div>
       </div>
