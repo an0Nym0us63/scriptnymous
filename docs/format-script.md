@@ -127,6 +127,11 @@ depuis la page Variables), `PYTHONUNBUFFERED=1`.
 Un paramètre `secret` est passé tel quel au script mais stocké masqué (`••••••`) dans l'historique.
 Un paramètre `file` reçoit le chemin du fichier téléversé (`/data/uploads/<id>/<nom>`).
 
+## Mini-app et tables par script
+
+Une section `app:` déclare des tables SQLite propres au script, un dossier de fichiers et un onglet « Suivi » (vue
+générique ou sous-app HTML). Voir [app.md](app.md).
+
 ## Notifier depuis un script
 
 Un script n'a pas besoin de connaître ntfy : ScriptNymous lui fournit un canal prêt à l'emploi pendant le run, avec le

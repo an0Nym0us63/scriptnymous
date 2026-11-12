@@ -29,6 +29,8 @@ import { registerWsRoutes } from './routes/ws.js';
 import { registerActivityRoutes } from './routes/activity.js';
 import { configPath, registerVariableRoutes } from './routes/variables.js';
 import { registerMcpRoutes } from './routes/mcp.js';
+import { registerAppRoutes } from './routes/app.js';
+import { AppDbManager } from './core/appdb.js';
 
 export interface Services {
   db: DB;
@@ -42,6 +44,7 @@ export interface Services {
   notifier: Notifier;
   settings: SettingsService;
   auth: AuthService;
+  appdb: AppDbManager;
 }
 
 declare module 'fastify' {
@@ -49,8 +52,10 @@ declare module 'fastify' {
     services: Services;
   }
   interface FastifyRequest {
-    authKind?: 'session' | 'token';
+    authKind?: 'session' | 'token' | 'run';
     sessionId?: string;
+    runId?: string;
+    runSlug?: string;
   }
 }
 
@@ -72,6 +77,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   const runner = new Runner(repo);
   runner.configFile = () => configPath(settings);
   const envs = new EnvManager(repo, log);
+  const appdb = new AppDbManager();
   const orchestrator = new Orchestrator(repo, runner, envs, notifier, log);
   const scheduler = new Scheduler(repo, orchestrator, () => settings.get().timezone, log);
   const reaper = new Reaper(repo, runner, { orphanPolicy: () => settings.get().orphan_policy, graceSeconds: config.killGraceSeconds }, log);
@@ -82,15 +88,24 @@ export async function buildApp(): Promise<FastifyInstance> {
     },
     onChanged: (script) => {
       scheduler.rearm(script);
-      if (script.status === 'ok') envs.ensure(script);
+      if (script.status === 'ok') {
+        envs.ensure(script);
+        try {
+          appdb.ensure(script.slug, script.spec.app);
+        } catch (e) {
+          log.warn({ slug: script.slug, err: (e as Error).message }, 'Tables de la mini-app impossibles à créer');
+        }
+      }
     },
   });
 
-  app.decorate('services', { db, repo, runner, envs, orchestrator, scheduler, reaper, registry, notifier, settings, auth });
+  app.decorate('services', { db, repo, runner, envs, orchestrator, scheduler, reaper, registry, notifier, settings, auth, appdb });
 
   await app.register(cookie, { secret: auth.sessionSecret() });
   await app.register(multipart, { limits: { fileSize: 200 * 1024 * 1024, files: 10 } });
   await app.register(websocket, { options: { maxPayload: 1024 * 1024 } });
+  // Corps binaires (dépôt de fichiers de mini-app) : conservés tels quels.
+  app.addContentTypeParser(['application/octet-stream', 'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'text/plain', 'text/csv'], { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
 
   // ---- Authentification : tout /api sauf login et /healthz. ----
   app.addHook('onRequest', async (req, reply) => {
@@ -98,11 +113,18 @@ export async function buildApp(): Promise<FastifyInstance> {
     if (!url.startsWith('/api/')) return;
     if (url === '/api/auth/login' || url === '/api/auth/status') return;
     const header = req.headers.authorization;
-    // Un script en cours peut notifier via /api/runs/<id>/notify avec le jeton jetable de son run.
-    const m = /^\/api\/runs\/([^/]+)\/notify$/.exec(url);
-    if (m && header?.startsWith('Bearer ') && runner.validRunToken(m[1], header.slice(7))) {
-      req.authKind = 'token';
-      return;
+    // Un script en cours porte un jeton jetable : il peut notifier (/api/runs/<id>/notify) et écrire dans la mini-app
+    // de son propre script (/api/scripts/<slug>/db|files). Les routes concernées vérifient le slug.
+    if (header?.startsWith('Bearer ')) {
+      const owner = runner.ownerOfToken(header.slice(7));
+      if (owner) {
+        const allowed = url === `/api/runs/${owner.runId}/notify` || url.startsWith(`/api/scripts/${encodeURIComponent(owner.slug)}/db/`) || url.startsWith(`/api/scripts/${encodeURIComponent(owner.slug)}/files/`);
+        if (!allowed) return reply.code(403).send({ error: 'Jeton de run : accès limité aux notifications et aux données de son script' });
+        req.authKind = 'run';
+        req.runId = owner.runId;
+        req.runSlug = owner.slug;
+        return;
+      }
     }
     if (header?.startsWith('Bearer ')) {
       if (auth.validApiToken(header.slice(7))) {
@@ -138,6 +160,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerActivityRoutes(app);
   await registerVariableRoutes(app);
   await registerMcpRoutes(app);
+  await registerAppRoutes(app);
 
   app.setErrorHandler((err: Error & { statusCode?: number }, req, reply) => {
     const status = (err as { statusCode?: number }).statusCode ?? 500;
@@ -164,7 +187,15 @@ export async function buildApp(): Promise<FastifyInstance> {
     await registry.reloadAll();
     const scripts = repo.listScripts();
     await envs.installAptUnion(scripts);
-    for (const s of scripts) if (s.status === 'ok') envs.ensure(s);
+    for (const s of scripts)
+      if (s.status === 'ok') {
+        envs.ensure(s);
+        try {
+          appdb.ensure(s.slug, s.spec.app);
+        } catch (e) {
+          log.warn({ slug: s.slug, err: (e as Error).message }, 'Tables de la mini-app impossibles à créer');
+        }
+      }
     reaper.reconcile();
     reaper.start(config.reaperSeconds);
     scheduler.start(scripts);
@@ -183,6 +214,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       orchestrator.stop();
       await registry.stop();
       runner.stopAll();
+      appdb.closeAll();
       db.close();
     });
     log.info({ scripts: scripts.length, scriptsDir: config.scriptsDir, dataDir: config.dataDir }, 'ScriptNymous prêt');

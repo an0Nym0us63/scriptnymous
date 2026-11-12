@@ -59,6 +59,7 @@ export const useScripts = defineStore('scripts', () => {
         case 'env:changed':
         case 'queue:changed':
         case 'schedule:armed':
+        case 'app:changed':
         case 'scripts:reloaded':
           scheduleReload();
           break;

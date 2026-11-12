@@ -12,6 +12,8 @@ import AppIcon from '@/components/AppIcon.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import ParamForm from '@/components/ParamForm.vue';
 import CodeEditor from '@/components/CodeEditor.vue';
+import AppPanel from '@/components/AppPanel.vue';
+import { LayoutPanelTop } from 'lucide-vue-next';
 
 const route = useRoute();
 const router = useRouter();
@@ -24,21 +26,25 @@ const values = ref<Record<string, unknown>>({});
 const busy = ref(false);
 const now = ref(Date.now());
 const tab = ref<string>((route.query.tab as string) || 'overview');
+const appPageUrl = computed(() => (script.value?.spec.app?.page ? `/api/scripts/${encodeURIComponent(slug.value)}/app/page/?theme=${app.theme}&slug=${encodeURIComponent(slug.value)}` : null));
 let tick: number;
 let unsub: (() => void) | null = null;
 let reloadTimer: number | null = null;
 
-const tabs = [
+const tabs = computed(() => [
+  ...(script.value?.spec.app ? [{ id: 'app', label: script.value.spec.app.title || 'Suivi', icon: LayoutPanelTop }] : []),
   { id: 'overview', label: 'Aperçu', icon: Play },
   { id: 'history', label: 'Historique', icon: HistoryIcon },
   { id: 'schedules', label: 'Planifications', icon: Clock },
   { id: 'env', label: 'Environnement', icon: Package },
   { id: 'notify', label: 'Notifications', icon: Bell },
   { id: 'code', label: 'Code & YAML', icon: FileCode2 },
-];
+]);
 
 async function load(): Promise<void> {
   script.value = await api.get<ScriptDetail>(`/api/scripts/${encodeURIComponent(slug.value)}`);
+  // Un script avec mini-app s'ouvre sur son onglet Suivi.
+  if (!route.query.tab && script.value.spec.app && tab.value === 'overview') tab.value = 'app';
   runs.value = (await api.get<{ runs: Run[] }>(`/api/runs?slug=${slug.value}&limit=20`)).runs;
 }
 function scheduleReload(): void {
@@ -172,8 +178,14 @@ async function clearQueue(): Promise<void> {
       </button>
     </div>
 
+    <!-- Mini-app / Suivi -->
+    <div v-if="tab === 'app' && script.spec.app">
+      <iframe v-if="appPageUrl" :src="appPageUrl" class="w-full rounded-2xl border border-border bg-bg-elev" style="height: 75vh" title="Sous-app du script" />
+      <AppPanel v-else :slug="script.slug" :app="script.spec.app" />
+    </div>
+
     <!-- Aperçu -->
-    <div v-if="tab === 'overview'" class="grid gap-5 lg:grid-cols-5">
+    <div v-else-if="tab === 'overview'" class="grid gap-5 lg:grid-cols-5">
       <div class="lg:col-span-3 card p-5">
         <h2 class="font-semibold mb-4 flex items-center gap-2"><Play class="h-4 w-4 text-accent-2" /> Lancer</h2>
         <form @submit.prevent="launch">

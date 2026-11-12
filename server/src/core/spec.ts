@@ -75,6 +75,49 @@ export const BinDepSchema = z
   .object({ name: z.string().min(1), url: z.string().url(), sha256: z.string().length(64).optional() })
   .strict();
 
+// ---- Mini-app par script : tables SQLite déclarées, vue générique, sous-app facultative ----
+export const AppColumnTypes = ['text', 'integer', 'real', 'boolean', 'datetime', 'json'] as const;
+export type AppColumnType = (typeof AppColumnTypes)[number];
+const IDENT_RE = /^[a-z][a-z0-9_]{0,40}$/;
+
+export const AppViewSchema = z
+  .object({
+    title: z.string().optional(),
+    subtitle: z.string().optional(),
+    // Nom de colonne, ou valeur fixe préfixée par « = » (ex. "=pending").
+    status: z.string().optional(),
+    date: z.string().optional(),
+    thumbnail: z.string().optional(),
+    group: z.string().optional(),
+    link: z.string().optional(),
+    // Libellés des statuts (ok, pending, warn, error, info) propres à la table.
+    labels: z.record(z.string()).default({}),
+  })
+  .strict();
+
+export const AppTableSchema = z
+  .object({
+    columns: z.record(z.string().regex(/^(text|integer|real|boolean|datetime|json)!?$/, 'type de colonne inconnu')),
+    key: z.string().optional(),
+    // Tri par défaut : nom de colonne, préfixé de « - » pour décroissant.
+    order: z.string().optional(),
+    view: AppViewSchema.optional(),
+    // Rétention : lignes conservées au maximum (les plus anciennes par _updated_at sont supprimées). 0 = illimité.
+    max_rows: z.number().int().min(0).default(0),
+  })
+  .strict();
+
+export const AppSchema = z
+  .object({
+    title: z.string().optional(),
+    // Page HTML de la sous-app, relative au dossier du script (son dossier entier est servi).
+    page: z.string().optional(),
+    tables: z.record(AppTableSchema).default({}),
+  })
+  .strict();
+export type AppSpec = z.infer<typeof AppSchema>;
+export type AppTableSpec = z.infer<typeof AppTableSchema>;
+
 export const DepsSchema = z
   .object({
     apt: z.array(z.string()).default([]),
@@ -104,6 +147,7 @@ export const ScriptSpecSchema = z
     schedules: z.array(ScheduleSchema).default([]),
     notify: NotifySchema.default({}),
     deps: DepsSchema.default({}),
+    app: AppSchema.optional(),
     enabled: z.boolean().default(true),
   })
   .strict()
@@ -158,8 +202,34 @@ export function validateSpec(raw: unknown): ScriptSpec {
     if ((p.type === 'choice' || p.type === 'multichoice') && !p.choices?.length)
       throw new SpecError(`Le paramètre « ${p.name} » doit fournir des choix (choices)`);
   }
+  if (spec.app) validateApp(spec.app);
   return spec;
 }
+
+/** Vérifie la cohérence de la section app (noms, clé, vue). */
+function validateApp(app: AppSpec): void {
+  for (const [name, t] of Object.entries(app.tables)) {
+    if (!IDENT_RE.test(name)) throw new SpecError(`app.tables : nom de table invalide « ${name} » (minuscules, chiffres, _)`);
+    const cols = Object.keys(t.columns);
+    if (!cols.length) throw new SpecError(`app.tables.${name} : au moins une colonne`);
+    for (const c of cols) {
+      if (!IDENT_RE.test(c) || c.startsWith('_')) throw new SpecError(`app.tables.${name} : nom de colonne invalide « ${c} »`);
+    }
+    if (t.key && !cols.includes(t.key)) throw new SpecError(`app.tables.${name} : la clé « ${t.key} » n'est pas une colonne`);
+    if (t.order && !cols.includes(t.order.replace(/^-/, '')) && !['_updated_at', '-_updated_at'].includes(t.order))
+      throw new SpecError(`app.tables.${name} : tri sur une colonne inconnue « ${t.order} »`);
+    if (t.view) {
+      for (const [k, v] of Object.entries(t.view)) {
+        if (k === 'labels' || v === undefined) continue;
+        const val = v as string;
+        if (val.startsWith('=')) continue;
+        if (!cols.includes(val)) throw new SpecError(`app.tables.${name}.view.${k} : colonne inconnue « ${val} »`);
+      }
+    }
+  }
+  if (app.page && (app.page.includes('..') || path_isAbsolute(app.page))) throw new SpecError('app.page doit être un chemin relatif au dossier du script');
+}
+const path_isAbsolute = (p: string) => p.startsWith('/') || /^[A-Za-z]:[\\/]/.test(p);
 
 /** Sérialise une déclaration en YAML lisible (utilisé lors de l'édition depuis l'interface). */
 export function stringifySpec(spec: ScriptSpec): string {

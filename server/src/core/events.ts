@@ -13,6 +13,7 @@ export interface EventMap {
   'env:changed': { slug: string; status: string };
   'queue:changed': { slug: string };
   'schedule:armed': { slug: string; scheduleId: string; nextAt: string | null };
+  'app:changed': { slug: string; table: string };
 }
 
 export type EventName = keyof EventMap;

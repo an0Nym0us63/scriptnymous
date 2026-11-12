@@ -11,6 +11,7 @@ import { buildInvocation, type ParamValues } from './params.js';
 import { isWindows, killGroup, readProcStartTicks } from './proc.js';
 import { ensureDir } from '../util/fs.js';
 import { envRuntime } from './envs.js';
+import { appDbPath, appFilesDir } from './appdb.js';
 
 export interface LiveRun {
   run: RunRow;
@@ -49,11 +50,17 @@ export class Runner {
   configFile: () => string = () => path.join(config.scriptsDir, 'config.json');
   /** Jetons jetables par run : permettent au script de notifier via l'API sans connaître ntfy. */
   readonly runTokens = new Map<string, string>();
+  private readonly tokenOwner = new Map<string, { runId: string; slug: string }>();
 
   /** Vrai si `token` est le jeton du run `runId` encore vivant. */
   validRunToken(runId: string, token: string): boolean {
     const t = this.runTokens.get(runId);
     return !!t && t === token;
+  }
+
+  /** Run et script associés à un jeton de run (null si inconnu ou expiré). */
+  ownerOfToken(token: string): { runId: string; slug: string } | null {
+    return this.tokenOwner.get(token) ?? null;
   }
 
   constructor(private readonly repo: Repo) {}
@@ -80,6 +87,8 @@ export class Runner {
     const pathSep = isWindows ? ';' : ':';
     const runToken = randomBytes(24).toString('base64url');
     this.runTokens.set(run.id, runToken);
+    this.tokenOwner.set(runToken, { runId: run.id, slug: script.slug });
+    ensureDir(appFilesDir(script.slug));
     const env: Record<string, string> = {
       ...(process.env as Record<string, string>),
       ...spec.env,
@@ -94,7 +103,12 @@ export class Runner {
       SN_SCRIPTS_DIR: config.scriptsDir,
       SN_CONFIG_FILE: this.configFile(),
       // Canal de notification fourni par ScriptNymous : POST JSON { title, message, tags, priority, file }.
+      SN_API_URL: `http://127.0.0.1:${config.port}`,
       SN_NOTIFY_URL: `http://127.0.0.1:${config.port}/api/runs/${run.id}/notify`,
+      // Mini-app du script : base SQLite propre (tables déclarées dans app.tables) et dossier de fichiers.
+      SN_APP_DB: appDbPath(script.slug),
+      SN_APP_DATA: appFilesDir(script.slug),
+      SN_APP_API: `http://127.0.0.1:${config.port}/api/scripts/${encodeURIComponent(script.slug)}`,
       SN_RUN_TOKEN: runToken,
       PYTHONUNBUFFERED: '1',
       FORCE_COLOR: process.env.FORCE_COLOR ?? '0',
@@ -228,7 +242,11 @@ export class Runner {
     if (live.heartbeat) clearInterval(live.heartbeat);
     this.live.delete(live.run.id);
     // Le jeton reste valable quelques secondes : un script peut notifier juste avant de sortir.
-    setTimeout(() => this.runTokens.delete(live.run.id), 15_000).unref();
+    setTimeout(() => {
+      const t = this.runTokens.get(live.run.id);
+      this.runTokens.delete(live.run.id);
+      if (t) this.tokenOwner.delete(t);
+    }, 15_000).unref();
 
     let status: RunRow['status'];
     if (live.stopRequested) status = live.run.status === 'timeout' ? 'timeout' : 'killed';

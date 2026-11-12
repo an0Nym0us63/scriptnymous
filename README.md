@@ -27,6 +27,8 @@ Remplaçant personnel de script-server, dans la lignée de BambuNymous.
 - **Variables partagées** : un fichier JSON du partage (`config.json` par défaut, choisi dans Réglages) édité en arbre
   avec filtre, ajout à toute profondeur, secrets masqués, JSON brut, sauvegarde `.bak` ; chemin passé aux scripts dans
   `SN_CONFIG_FILE`.
+- **Mini-app par script** : tables SQLite déclarées dans le YAML (base propre à chaque script), dossier de fichiers,
+  onglet « Suivi » généré (statuts, groupes, vignettes) ou sous-app HTML fournie par le script. Voir [docs/app.md](docs/app.md).
 - **Panneau Activité** : installations d'environnement en cours avec leur journal, runs en cours, file d'attente et retries à venir.
 - **Notifications ntfy** par événement (début, succès, échec, échec définitif, instance déjà en cours, script introuvable,
   processus perdu), priorité, étiquettes, lien vers le run.
@@ -128,6 +130,7 @@ En dev, `SN_SCRIPTS_DIR=../scripts-local` et `SN_DATA_DIR=../data` (voir `server
 - [docs/decisions.md](docs/decisions.md) : choix techniques et leurs raisons.
 - [docs/format-script.md](docs/format-script.md) : format `script.yaml`.
 - [docs/api.md](docs/api.md) : API REST et websocket.
+- [docs/app.md](docs/app.md) : mini-app par script (tables, fichiers, onglet Suivi, sous-app).
 - [docs/mcp.md](docs/mcp.md) : serveur MCP (outils exposés, connexion depuis Claude Code / Claude Desktop).
 
 ## Licence

@@ -96,8 +96,12 @@ export interface ScriptSpec {
   schedules: ScheduleSpec[];
   notify: { topic?: string; server?: string; token?: string; events: string[]; priority: number; tags: string[] };
   deps: { apt: string[]; pip: string[]; npm: string[]; bin: { name: string; url: string; sha256?: string }[] };
+  app?: AppSpec;
   enabled: boolean;
 }
+export interface AppView { title?: string; subtitle?: string; status?: string; date?: string; thumbnail?: string; group?: string; link?: string; labels: Record<string, string> }
+export interface AppTableSpec { columns: Record<string, string>; key?: string; order?: string; view?: AppView; max_rows: number }
+export interface AppSpec { title?: string; page?: string; tables: Record<string, AppTableSpec> }
 export interface RunSummary {
   id: string;
   status: RunStatus;
@@ -120,6 +124,7 @@ export interface ScriptItem {
   running: { id: string; started_at: string | null }[];
   next_runs: { scheduleId: string; nextAt: string }[];
   queued: number;
+  app_summary: { table: string; total: number; by_status: Record<string, number> } | null;
 }
 export interface ScriptDetail extends ScriptItem {
   yaml: string | null;

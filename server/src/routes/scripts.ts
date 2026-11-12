@@ -13,7 +13,7 @@ import { newId } from '../util/ids.js';
 import type { ParamValues } from '../core/params.js';
 
 export function enrich(app: FastifyInstance, s: ScriptRecord) {
-  const { repo, scheduler } = app.services;
+  const { repo, scheduler, appdb } = app.services;
   const last = repo.lastRun(s.slug);
   const running = repo.runningRuns(s.slug);
   const next = scheduler.nextFor(s.slug);
@@ -33,6 +33,7 @@ export function enrich(app: FastifyInstance, s: ScriptRecord) {
     running: running.map((r) => ({ id: r.id, started_at: r.started_at })),
     next_runs: next,
     queued: repo.listQueue(s.slug).length,
+    app_summary: s.spec.app ? appdb.summary(s.slug, s.spec.app) : null,
   };
 }
 

@@ -40,7 +40,7 @@ function summarize(s: ReturnType<Services['repo']['listScripts']>[number], servi
 }
 
 export function buildMcpServer(services: Services): McpServer {
-  const { repo, registry, orchestrator, scheduler, envs, settings, notifier } = services;
+  const { repo, registry, orchestrator, scheduler, envs, settings, notifier, appdb } = services;
   const server = new McpServer({ name: 'scriptnymous', version: '0.1.0' }, { instructions: 'ScriptNymous gère des scripts déclarés dans /scripts/<slug>/script.yaml. Utilise list_scripts puis get_script avant de modifier ; save_script réécrit le YAML et le code sur le partage. Les lancements créent des runs dont on lit le journal avec get_run_log.' });
 
   // ---------- scripts ----------
@@ -254,6 +254,47 @@ export function buildMcpServer(services: Services): McpServer {
     else delete (cur as Record<string, unknown>)[last];
     await writeVars(file, data);
     return text({ ok: true });
+  });
+
+  // ---------- mini-app (tables par script) ----------
+  server.registerTool('app_tables', { title: 'Tables de la mini-app', description: 'Tables déclarées dans app.tables d’un script, avec statistiques (total, par statut, par groupe).', inputSchema: { slug: z.string() } }, async ({ slug }) => {
+    const s = repo.getScript(slug);
+    if (!s) return fail('Script inconnu');
+    if (!s.spec.app) return text({ app: null });
+    appdb.ensure(slug, s.spec.app);
+    const out: Record<string, unknown> = {};
+    for (const [name, t] of Object.entries(s.spec.app.tables)) out[name] = { columns: t.columns, key: t.key, view: t.view, stats: appdb.stats(slug, s.spec.app, name) };
+    return text({ title: s.spec.app.title, page: s.spec.app.page, tables: out });
+  });
+  server.registerTool('app_query', { title: 'Lire une table', description: 'Lignes d’une table de la mini-app : filtres { colonne: valeur }, recherche texte, tri (-colonne), pagination.', inputSchema: { slug: z.string(), table: z.string(), filters: z.record(z.string()).default({}), q: z.string().optional(), sort: z.string().optional(), limit: z.number().int().min(1).max(500).default(50), offset: z.number().int().min(0).default(0) } }, async ({ slug, table, filters, q, sort, limit, offset }) => {
+    const s = repo.getScript(slug);
+    if (!s) return fail('Script inconnu');
+    try {
+      appdb.ensure(slug, s.spec.app);
+      return text(appdb.list(slug, s.spec.app, table, { filters, q, sort, limit, offset }));
+    } catch (e) {
+      return fail((e as Error).message);
+    }
+  });
+  server.registerTool('app_upsert', { title: 'Écrire dans une table', description: 'Insère ou met à jour (par la clé déclarée) des lignes d’une table de la mini-app.', inputSchema: { slug: z.string(), table: z.string(), rows: z.array(z.record(z.any())).min(1).max(1000) } }, async ({ slug, table, rows }) => {
+    const s = repo.getScript(slug);
+    if (!s) return fail('Script inconnu');
+    try {
+      appdb.ensure(slug, s.spec.app);
+      return text(appdb.upsert(slug, s.spec.app, table, rows, null));
+    } catch (e) {
+      return fail((e as Error).message);
+    }
+  });
+  server.registerTool('app_delete', { title: 'Supprimer dans une table', description: 'Supprime une ligne par clé, ou toutes les lignes correspondant à des filtres.', inputSchema: { slug: z.string(), table: z.string(), key: z.string().optional(), filters: z.record(z.string()).optional() } }, async ({ slug, table, key, filters }) => {
+    const s = repo.getScript(slug);
+    if (!s) return fail('Script inconnu');
+    try {
+      if (key !== undefined) return text({ ok: appdb.delete(slug, s.spec.app, table, key) });
+      return text({ removed: appdb.deleteWhere(slug, s.spec.app, table, filters ?? {}) });
+    } catch (e) {
+      return fail((e as Error).message);
+    }
   });
 
   // ---------- réglages ----------

@@ -48,6 +48,11 @@ const blocked = computed(() => props.script.status !== 'ok' || (props.script.env
         <Loader2 v-if="script.env_status === 'installing'" class="h-3 w-3 animate-spin" /><Package v-else class="h-3 w-3" /> {{ envTone.label }}
       </span>
       <span v-if="script.queued" class="chip bg-info-soft text-info">{{ script.queued }} en file</span>
+      <template v-if="script.app_summary">
+        <span v-if="script.app_summary.by_status.error" class="chip bg-err-soft text-err">{{ script.app_summary.by_status.error }} en erreur</span>
+        <span v-if="script.app_summary.by_status.pending" class="chip bg-info-soft text-info">{{ script.app_summary.by_status.pending }} en attente</span>
+        <span v-if="script.app_summary.by_status.warn" class="chip bg-warn-soft text-warn">{{ script.app_summary.by_status.warn }} à voir</span>
+      </template>
       <span class="flex-1" />
       <span v-if="next" class="inline-flex items-center gap-1 text-muted" :title="new Date(next).toLocaleString('fr-FR')"><Clock class="h-3 w-3" /> {{ relative(next, now) }}</span>
     </div>
