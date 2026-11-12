@@ -20,7 +20,6 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   test:
@@ -43,6 +42,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+      - name: Nom d'image en minuscules (exigé par le registre)
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -55,7 +56,7 @@ jobs:
           context: .
           file: docker/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
           # Cache des couches entre deux builds : le socle apt, uv et les node_modules ne sont refaits que si nécessaire.
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -68,13 +69,15 @@ jobs:
     permissions:
       packages: write
     steps:
+      - name: Nom d'image en minuscules (exigé par le registre)
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Poser le tag latest (re-tag côté registre, sans nouvel envoi)
-        run: docker buildx imagetools create -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        run: docker buildx imagetools create -t ${{ env.IMAGE }}:latest ${{ env.IMAGE }}:${{ github.sha }}
       - name: Deploy to Portainer
         env:
           WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK_URL }}
