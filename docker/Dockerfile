@@ -57,7 +57,7 @@ COPY --from=web /src/web/dist ./web/dist
 COPY package.json ./
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 # sed : tolère un fichier en CRLF si l'image est construite depuis un poste Windows.
-RUN sed -i 's/$//' /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh && mkdir -p /scripts /data
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh && mkdir -p /scripts /data
 
 VOLUME ["/scripts", "/data"]
 EXPOSE 8080
