@@ -32,6 +32,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
     log_max_mb: z.number().int().min(0).optional(),
     orphan_policy: z.enum(['kill', 'adopt']).optional(),
     timezone: z.string().optional(),
+    variables_file: z.string().optional(),
   });
 
   app.put('/api/settings', async (req, reply) => {
@@ -47,6 +48,11 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
       } catch {
         return reply.code(400).send({ error: 'Fuseau horaire inconnu' });
       }
+    }
+    if (typeof patch.variables_file === 'string') {
+      const rel = patch.variables_file.split('\\').join('/').replace(/^\/+/, '').trim();
+      if (!rel || rel.split('/').some((seg) => seg === '..' || seg === '')) return reply.code(400).send({ error: 'Chemin du fichier de variables invalide (relatif au dossier des scripts)' });
+      patch.variables_file = rel;
     }
     settings.update(patch);
     // Le fuseau impacte les planifications : on réarme tout.

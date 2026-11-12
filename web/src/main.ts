@@ -10,6 +10,8 @@ import './style.css';
 const app = createApp(App);
 app.use(createPinia());
 app.use(router);
+// Focus à l'apparition d'un champ (formulaires ouverts dynamiquement) : `autofocus` ne vaut qu'au premier rendu.
+app.directive('focus', { mounted: (el: HTMLElement) => el.focus() });
 
 setUnauthorizedHandler(() => {
   const store = useApp();

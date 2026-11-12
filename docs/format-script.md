@@ -121,7 +121,8 @@ deps:
 
 Quel que soit le mode, chaque valeur est aussi exposée dans `SN_PARAM_<NOM>`. Le lanceur pose en plus :
 `SN_RUN_ID`, `SN_SCRIPT`, `SN_TRIGGER` (`manual`, `schedule`, `api`, `retry`, `catch_up`), `SN_ATTEMPT`,
-`SN_DATA_DIR`, `SN_SCRIPTS_DIR`, `PYTHONUNBUFFERED=1`.
+`SN_DATA_DIR`, `SN_SCRIPTS_DIR`, `SN_CONFIG_FILE` (chemin de `/scripts/config.json`, les variables partagées éditables
+depuis la page Variables), `PYTHONUNBUFFERED=1`.
 
 Un paramètre `secret` est passé tel quel au script mais stocké masqué (`••••••`) dans l'historique.
 Un paramètre `file` reçoit le chemin du fichier téléversé (`/data/uploads/<id>/<nom>`).

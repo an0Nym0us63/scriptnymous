@@ -168,6 +168,7 @@ export interface Settings {
   log_max_mb: number;
   orphan_policy: 'kill' | 'adopt';
   timezone: string;
+  variables_file: string;
 }
 export interface SystemInfo {
   version: string;

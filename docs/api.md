@@ -79,12 +79,23 @@ curl -X POST https://scripts.exemple.fr/api/scripts/hello-bash/run \
 | GET     | `/api/activity`       | installations d'environnement en cours, runs en cours, file d'attente et retries différés |
 | POST    | `/api/deps/suggest`   | `{ interpreter?, code?, log? }` → `{ suggestions: [{ kind, package, reason, fromError }] }` |
 
+## Variables partagées (`/scripts/config.json`)
+
+| Méthode | Route                     | Description                                                                   |
+| ------- | ------------------------- | ----------------------------------------------------------------------------- |
+| GET     | `/api/variables`          | `{ exists, data, raw, mtime, error, path }`                                   |
+| PUT     | `/api/variables`          | `{ data }` (objet) ou `{ raw }` (texte JSON), `mtime` vu, `force` ; sauvegarde `.bak`, écriture atomique |
+| GET     | `/api/variables/backup`   | contenu de `config.json.bak`                                                  |
+
+Le fichier est choisi par le réglage `variables_file` (relatif à `/scripts`, `config.json` par défaut, variable
+`SN_VARIABLES_FILE`) ; son chemin est passé aux scripts dans `SN_CONFIG_FILE`.
+
 ## Réglages
 
 | Méthode | Route                        | Description                                                   |
 | ------- | ---------------------------- | ------------------------------------------------------------- |
 | GET     | `/api/settings`              | `{ settings, system }` (le jeton ntfy n'est jamais renvoyé)   |
-| PUT     | `/api/settings`              | champs : `ntfy_server`, `ntfy_topic`, `ntfy_token` (`null` efface), `public_url`, `log_retention_days`, `log_max_mb`, `orphan_policy`, `timezone` |
+| PUT     | `/api/settings`              | champs : `ntfy_server`, `ntfy_topic`, `ntfy_token` (`null` efface), `public_url`, `log_retention_days`, `log_max_mb`, `orphan_policy`, `timezone`, `variables_file` |
 | POST    | `/api/settings/ntfy/test`    | envoie une notification de test                               |
 | POST    | `/api/settings/purge`        | purge immédiate des journaux                                  |
 | GET     | `/api/notifications`         | 50 dernières notifications envoyées (diagnostic)              |

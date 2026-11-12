@@ -27,6 +27,7 @@ import { registerRunRoutes } from './routes/runs.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerWsRoutes } from './routes/ws.js';
 import { registerActivityRoutes } from './routes/activity.js';
+import { configPath, registerVariableRoutes } from './routes/variables.js';
 
 export interface Services {
   db: DB;
@@ -68,6 +69,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   auth.bootstrap();
   const notifier = new Notifier(repo, settings, log);
   const runner = new Runner(repo);
+  runner.configFile = () => configPath(settings);
   const envs = new EnvManager(repo, log);
   const orchestrator = new Orchestrator(repo, runner, envs, notifier, log);
   const scheduler = new Scheduler(repo, orchestrator, () => settings.get().timezone, log);
@@ -127,6 +129,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerSettingsRoutes(app);
   await registerWsRoutes(app);
   await registerActivityRoutes(app);
+  await registerVariableRoutes(app);
 
   app.setErrorHandler((err: Error & { statusCode?: number }, req, reply) => {
     const status = (err as { statusCode?: number }).statusCode ?? 500;

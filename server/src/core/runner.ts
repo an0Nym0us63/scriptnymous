@@ -44,6 +44,9 @@ function interpreterCommand(script: ScriptRecord): { cmd: string; args: string[]
 export class Runner {
   readonly live = new Map<string, LiveRun>();
 
+  /** Fournisseur du chemin du fichier de variables (réglage), injecté par l'application. */
+  configFile: () => string = () => path.join(config.scriptsDir, 'config.json');
+
   constructor(private readonly repo: Repo) {}
 
   isLive(runId: string): boolean {
@@ -78,6 +81,7 @@ export class Runner {
       SN_ATTEMPT: String(run.attempt),
       SN_DATA_DIR: config.dataDir,
       SN_SCRIPTS_DIR: config.scriptsDir,
+      SN_CONFIG_FILE: this.configFile(),
       PYTHONUNBUFFERED: '1',
       FORCE_COLOR: process.env.FORCE_COLOR ?? '0',
     };

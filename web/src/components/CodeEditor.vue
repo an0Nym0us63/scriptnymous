@@ -10,9 +10,10 @@ import { shell } from '@codemirror/legacy-modes/mode/shell';
 import { python } from '@codemirror/lang-python';
 import { javascript } from '@codemirror/lang-javascript';
 import { yaml } from '@codemirror/lang-yaml';
+import { json } from '@codemirror/lang-json';
 import { oneDark } from '@codemirror/theme-one-dark';
 
-const props = defineProps<{ modelValue: string; lang: 'bash' | 'python' | 'javascript' | 'yaml' | 'text'; minHeight?: string }>();
+const props = defineProps<{ modelValue: string; lang: 'bash' | 'python' | 'javascript' | 'yaml' | 'json' | 'text'; minHeight?: string }>();
 const emit = defineEmits<{ 'update:modelValue': [v: string] }>();
 
 const host = ref<HTMLElement | null>(null);
@@ -29,6 +30,8 @@ function langExt() {
       return javascript();
     case 'yaml':
       return yaml();
+    case 'json':
+      return json();
     default:
       return [];
   }

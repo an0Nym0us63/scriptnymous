@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { LayoutDashboard, History, CalendarClock, Settings, Sun, Moon, LogOut, Plus, Wifi, WifiOff, Activity } from 'lucide-vue-next';
+import { LayoutDashboard, History, CalendarClock, Settings, Sun, Moon, LogOut, Plus, Wifi, WifiOff, Activity, Braces } from 'lucide-vue-next';
 import { useApp } from '@/stores/app';
 import { useScripts } from '@/stores/scripts';
 import { wsConnected } from '@/lib/ws';
@@ -17,6 +17,7 @@ const nav = [
   { to: '/', label: 'Tableau de bord', icon: LayoutDashboard, exact: true },
   { to: '/runs', label: 'Historique', icon: History },
   { to: '/schedules', label: 'Planifications', icon: CalendarClock },
+  { to: '/variables', label: 'Variables', icon: Braces },
   { to: '/settings', label: 'Réglages', icon: Settings },
 ];
 const isActive = (item: { to: string; exact?: boolean }) => (item.exact ? route.path === item.to : route.path.startsWith(item.to));

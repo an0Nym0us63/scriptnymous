@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { Bell, KeyRound, Trash2, Copy, RefreshCw, ShieldCheck, Server, Info } from 'lucide-vue-next';
+import { Bell, KeyRound, Trash2, Copy, RefreshCw, ShieldCheck, Server, Info, FolderOpen, Braces } from 'lucide-vue-next';
+import FileBrowser from '@/components/FileBrowser.vue';
 import { api, type Settings, type SystemInfo } from '@/lib/api';
 import { useApp } from '@/stores/app';
 import { bytes } from '@/lib/format';
@@ -9,7 +10,8 @@ const app = useApp();
 const origin = window.location.origin;
 const settings = ref<Settings | null>(null);
 const system = ref<SystemInfo | null>(null);
-const form = ref({ ntfy_server: '', ntfy_topic: '', ntfy_token: '', public_url: '', log_retention_days: 30, log_max_mb: 500, orphan_policy: 'kill' as 'kill' | 'adopt', timezone: 'Europe/Paris' });
+const form = ref({ ntfy_server: '', ntfy_topic: '', ntfy_token: '', public_url: '', log_retention_days: 30, log_max_mb: 500, orphan_policy: 'kill' as 'kill' | 'adopt', timezone: 'Europe/Paris', variables_file: 'config.json' });
+const browsing = ref(false);
 const saving = ref(false);
 const token = ref<{ set: boolean; prefix: string | null }>({ set: false, prefix: null });
 const freshToken = ref('');
@@ -127,8 +129,20 @@ async function changePassword(): Promise<void> {
         </div>
       </section>
 
+      <section class="card p-5">
+        <h2 class="font-semibold flex items-center gap-2 mb-4"><Braces class="h-4 w-4 text-accent-2" /> Variables partagées</h2>
+        <label class="label">Fichier JSON des variables (relatif au dossier des scripts)</label>
+        <div class="flex gap-2">
+          <input v-model="form.variables_file" class="input font-mono" placeholder="config.json" />
+          <button type="button" class="btn-soft shrink-0" @click="browsing = true"><FolderOpen class="h-4 w-4" /> Parcourir</button>
+        </div>
+        <p class="text-xs text-muted mt-2">Édité depuis la page Variables ; son chemin est passé aux scripts dans <span class="kbd">SN_CONFIG_FILE</span>. Un fichier inexistant est créé au premier enregistrement.</p>
+      </section>
+
       <div class="flex justify-end"><button class="btn-primary" :disabled="saving">Enregistrer</button></div>
     </form>
+
+    <FileBrowser v-if="browsing" @close="browsing = false" @pick="(p) => { form.variables_file = p; browsing = false; }" />
 
     <section class="card p-5 mt-5">
       <h2 class="font-semibold flex items-center gap-2 mb-2"><KeyRound class="h-4 w-4 text-accent-2" /> Jeton d'API</h2>

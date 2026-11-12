@@ -12,6 +12,8 @@ export interface Settings {
   // Au redémarrage, un run encore vivant est tué (kill) ou suivi jusqu'à sa fin (adopt).
   orphan_policy: 'kill' | 'adopt';
   timezone: string;
+  // Fichier des variables partagées, relatif au dossier des scripts.
+  variables_file: string;
 }
 
 export const SETTING_KEYS: (keyof Settings)[] = [
@@ -23,6 +25,7 @@ export const SETTING_KEYS: (keyof Settings)[] = [
   'log_max_mb',
   'orphan_policy',
   'timezone',
+  'variables_file',
 ];
 
 export function defaults(): Settings {
@@ -35,6 +38,7 @@ export function defaults(): Settings {
     log_max_mb: config.logMaxMb,
     orphan_policy: (process.env.SN_ORPHAN_POLICY as Settings['orphan_policy']) === 'adopt' ? 'adopt' : 'kill',
     timezone: config.timezone,
+    variables_file: process.env.SN_VARIABLES_FILE || 'config.json',
   };
 }
 

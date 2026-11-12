@@ -13,6 +13,7 @@ export const router = createRouter({
     { path: '/scripts/:slug(.+)', name: 'script', component: () => import('@/views/ScriptView.vue'), meta: { title: 'Script' } },
     { path: '/runs', name: 'runs', component: () => import('@/views/HistoryView.vue'), meta: { title: 'Historique' } },
     { path: '/runs/:id', name: 'run', component: () => import('@/views/RunView.vue'), meta: { title: 'Run' } },
+    { path: '/variables', name: 'variables', component: () => import('@/views/VariablesView.vue'), meta: { title: 'Variables' } },
     { path: '/schedules', name: 'schedules', component: () => import('@/views/SchedulesView.vue'), meta: { title: 'Planifications' } },
     { path: '/settings', name: 'settings', component: () => import('@/views/SettingsView.vue'), meta: { title: 'Réglages' } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
