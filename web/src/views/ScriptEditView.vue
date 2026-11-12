@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Création / édition d'un script : formulaire complet (général, paramètres, planifications, exécution, notifications,
 // dépendances), éditeur de code et YAML brut. Écrit dans /scripts/<slug>/ via l'API.
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import YAML from 'yaml';
 import { ArrowLeft, Plus, Trash2, Save, GripVertical, Wand2, FolderOpen } from 'lucide-vue-next';
@@ -13,6 +13,8 @@ import AppIcon from '@/components/AppIcon.vue';
 import CodeEditor from '@/components/CodeEditor.vue';
 import ParamForm from '@/components/ParamForm.vue';
 import FileBrowser from '@/components/FileBrowser.vue';
+const IconPicker = defineAsyncComponent(() => import('@/components/IconPicker.vue'));
+const pickingIcon = ref(false);
 
 const route = useRoute();
 const router = useRouter();
@@ -69,7 +71,6 @@ const tabs = [
   { id: 'yaml', label: 'YAML' },
 ];
 const lang = computed(() => (spec.interpreter === 'python3' ? 'python' : spec.interpreter === 'node' ? 'javascript' : spec.interpreter ? 'bash' : 'text'));
-const ICONS = ['terminal', 'play', 'database', 'hard-drive', 'cloud', 'cloud-sun', 'mail', 'server', 'shield', 'rocket', 'wrench', 'bell', 'camera', 'download', 'upload', 'refresh-cw', 'trash-2', 'archive', 'home', 'zap', 'file-text', 'globe', 'cpu', 'bot'];
 const COLORS = ['#6366f1', '#7c6cff', '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6', '#8b5cf6', '#64748b'];
 
 function assign(src: ScriptSpec): void {
@@ -307,10 +308,14 @@ function applyYamlToForm(): void {
       </div>
       <div>
         <label class="label">Icône</label>
-        <div class="flex flex-wrap gap-1.5">
-          <button v-for="i in ICONS" :key="i" type="button" class="h-9 w-9 rounded-xl flex items-center justify-center border transition" :class="spec.icon === i ? 'border-accent bg-accent-soft text-accent-2' : 'border-border text-text-2 hover:border-border-strong'" :title="i" @click="spec.icon = i"><AppIcon :name="i" :size="16" /></button>
+        <div class="flex items-center gap-3">
+          <div class="h-12 w-12 rounded-xl flex items-center justify-center text-white shrink-0" :style="{ background: spec.color }"><AppIcon :name="spec.icon" :size="22" /></div>
+          <div class="min-w-0 flex-1">
+            <div class="font-mono text-sm truncate">{{ spec.icon }}</div>
+            <div class="text-xs text-muted">Catalogue lucide complet.</div>
+          </div>
+          <button type="button" class="btn-soft" @click="pickingIcon = true"><Wand2 class="h-4 w-4" /> Choisir…</button>
         </div>
-        <input v-model="spec.icon" class="input mt-2 font-mono text-xs" placeholder="nom d'icône lucide" />
       </div>
       <div>
         <label class="label">Couleur</label>
@@ -481,6 +486,7 @@ function applyYamlToForm(): void {
       <CodeEditor :model-value="code ?? ''" :lang="lang" min-height="480px" @update:model-value="code = $event" />
     </div>
 
+    <IconPicker v-if="pickingIcon" :current="spec.icon" :color="spec.color" @close="pickingIcon = false" @pick="(n) => { spec.icon = n; pickingIcon = false; }" />
     <FileBrowser v-if="browsing" :root="isNew ? undefined : slug" :start="isNew ? undefined : slug" @close="browsing = false" @pick="pickFile" />
 
     <!-- YAML -->
