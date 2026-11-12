@@ -134,11 +134,13 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // ---- Interface compilée (SPA) : fichiers statiques + repli sur index.html. ----
   if (fs.existsSync(path.join(config.webDist, 'index.html'))) {
-    await app.register(fastifyStatic, { root: config.webDist, prefix: '/', wildcard: false, cacheControl: true, maxAge: '1h' });
+    await app.register(fastifyStatic, { root: config.webDist, prefix: '/', cacheControl: true, maxAge: '1h' });
     app.setNotFoundHandler((req, reply) => {
       if (req.url.startsWith('/api/')) return reply.code(404).send({ error: 'Introuvable' });
+      // Un fichier manquant (ancien bundle en cache, par exemple) ne doit pas recevoir index.html.
+      if (/\.[a-z0-9]{1,8}(\?|$)/i.test(req.url)) return reply.code(404).send('Introuvable');
       // index.html et sw.js ne doivent pas être mis en cache par le navigateur.
-      return reply.header('Cache-Control', 'no-cache').sendFile('index.html');
+      return reply.header('Cache-Control', 'no-cache').sendFile('index.html', config.webDist, { cacheControl: false });
     });
   } else {
     log.warn({ dir: config.webDist }, 'Interface compilée absente : seule l’API est servie (en dev, utiliser Vite sur le port 5173)');
