@@ -56,19 +56,21 @@ async function purge(): Promise<void> {
   await load();
 }
 /** Remise à zéro globale : historique (tout ou échecs), notifications, file d'attente. */
-async function reset(kind: 'failed' | 'runs' | 'notifications' | 'queue'): Promise<void> {
+async function reset(kind: 'all' | 'failed' | 'runs' | 'notifications' | 'queue'): Promise<void> {
   const labels = {
+    all: 'Tout nettoyer : historique des lancements (journaux compris), notifications et file d’attente ? Les runs en cours et les données des apps sont conservés.',
     failed: 'Effacer tous les échecs de l’historique (et leurs journaux) ? Les statistiques d’échecs repartent de zéro.',
     runs: 'Effacer TOUT l’historique des lancements, tous scripts confondus, journaux compris ? Les runs en cours sont conservés.',
     notifications: 'Effacer l’historique des notifications envoyées ?',
     queue: 'Vider la file d’attente (lancements en attente et relances programmées) ?',
   };
   if (!confirm(labels[kind])) return;
-  const body = { runs: kind === 'failed' || kind === 'runs', failed_only: kind === 'failed', notifications: kind === 'notifications', queue: kind === 'queue' };
+  const all = kind === 'all';
+  const body = { runs: all || kind === 'failed' || kind === 'runs', failed_only: kind === 'failed', notifications: all || kind === 'notifications', queue: all || kind === 'queue' };
   try {
     const r = await api.post<{ runs: number; notifications: number; queue: number }>('/api/settings/reset', body);
-    const n = kind === 'notifications' ? r.notifications : kind === 'queue' ? r.queue : r.runs;
-    app.toast('ok', 'Remise à zéro effectuée', `${n} élément(s) supprimé(s)`);
+    const n = all ? r.runs + r.notifications + r.queue : kind === 'notifications' ? r.notifications : kind === 'queue' ? r.queue : r.runs;
+    app.toast('ok', all ? 'Tout est nettoyé' : 'Remise à zéro effectuée', all ? `${r.runs} run(s), ${r.notifications} notification(s), ${r.queue} élément(s) de file` : `${n} élément(s) supprimé(s)`);
     await load();
   } catch (e) {
     app.toast('err', 'Remise à zéro impossible', (e as Error).message);
@@ -148,8 +150,9 @@ async function changePassword(): Promise<void> {
         </div>
         <div class="mt-5 pt-4 border-t border-border">
           <div class="text-sm font-medium mb-1">Remise à zéro</div>
-          <p class="text-xs text-muted mb-3">Les compteurs du tableau de bord (succès, échecs, total) sont calculés sur l'historique : l'effacer les remet à zéro. Les données des mini-apps se remettent à zéro depuis la page de chaque script.</p>
+          <p class="text-xs text-muted mb-3">Les compteurs du tableau de bord (succès, échecs, total) sont calculés sur l'historique : l'effacer les remet à zéro. Les données des apps ne sont jamais touchées ici : chaque app a son bouton « Nettoyer les données de cette app » en tête de son onglet.</p>
           <div class="flex flex-wrap gap-2">
+            <button type="button" class="btn-primary" @click="reset('all')"><Trash2 class="h-4 w-4" /> Tout nettoyer (sauf les apps)</button>
             <button type="button" class="btn-soft" @click="reset('failed')"><Trash2 class="h-4 w-4" /> Effacer les échecs</button>
             <button type="button" class="btn-soft" @click="reset('runs')"><Trash2 class="h-4 w-4" /> Effacer tout l'historique</button>
             <button type="button" class="btn-soft" @click="reset('notifications')"><Trash2 class="h-4 w-4" /> Effacer les notifications</button>

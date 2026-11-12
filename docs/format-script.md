@@ -43,7 +43,9 @@ params:
     label: Destination               # libellé affiché
     description: Où envoyer la sauvegarde.
     type: choice                     # text | number | boolean | choice | multichoice | file | secret
-    choices: [nas, cloud]            # requis pour choice / multichoice
+    choices: [nas, cloud]            # requis pour choice / multichoice (sauf avec choices_from)
+    # choices_from: channels.name    # valeurs lues dans une table de la section app (« table.colonne ») :
+    #                                # champ texte avec liste filtrée au fil de la frappe, ou liste déroulante si type: choice
     default: nas
     required: true
     pass: positional                 # positional (défaut) | option | env

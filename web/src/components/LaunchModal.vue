@@ -54,7 +54,7 @@ async function launch(): Promise<void> {
 <template>
   <Modal :title="`Lancer « ${script.name} »`" @close="emit('close')">
     <form id="launch-form" @submit.prevent="launch">
-      <ParamForm v-model="values" :params="script.spec.params" />
+      <ParamForm v-model="values" :params="script.spec.params" :slug="script.slug" />
       <p v-if="error" class="mt-4 text-sm text-err">{{ error }}</p>
     </form>
     <template #footer>

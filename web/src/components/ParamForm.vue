@@ -1,10 +1,29 @@
 <script setup lang="ts">
 // Formulaire généré depuis les paramètres déclarés. v-model : Record<string, unknown> ; fichiers : File.
-import { onMounted } from 'vue';
-import type { ParamSpec } from '@/lib/api';
+import { onMounted, reactive } from 'vue';
+import { api, type ParamSpec } from '@/lib/api';
 
-const props = defineProps<{ params: ParamSpec[]; modelValue: Record<string, unknown>; compact?: boolean }>();
+/** `slug` permet de charger les listes dynamiques (`choices_from: table.colonne`) depuis la mini-app du script. */
+const props = defineProps<{ params: ParamSpec[]; modelValue: Record<string, unknown>; compact?: boolean; slug?: string }>();
 const emit = defineEmits<{ 'update:modelValue': [v: Record<string, unknown>] }>();
+
+const dynamic = reactive<Record<string, string[]>>({});
+const optionsOf = (p: ParamSpec): (string | number)[] => (p.choices_from ? (dynamic[p.name] ?? []) : (p.choices ?? []));
+async function loadDynamic(): Promise<void> {
+  if (!props.slug) return;
+  await Promise.all(
+    props.params
+      .filter((p) => p.choices_from)
+      .map(async (p) => {
+        try {
+          const r = await api.get<{ choices: string[] }>(`/api/scripts/${encodeURIComponent(props.slug!)}/params/${encodeURIComponent(p.name)}/choices`);
+          dynamic[p.name] = r.choices;
+        } catch {
+          dynamic[p.name] = [];
+        }
+      }),
+  );
+}
 
 const set = (name: string, v: unknown) => emit('update:modelValue', { ...props.modelValue, [name]: v });
 const toggleMulti = (name: string, choice: string) => {
@@ -20,6 +39,7 @@ onMounted(() => {
   for (const p of props.params) if (init[p.name] === undefined && p.default !== undefined) init[p.name] = p.default;
   for (const p of props.params) if (init[p.name] === undefined && p.type === 'boolean') init[p.name] = false;
   emit('update:modelValue', init);
+  void loadDynamic();
 });
 </script>
 
@@ -48,12 +68,12 @@ onMounted(() => {
 
         <select v-if="p.type === 'choice'" class="input" :value="modelValue[p.name] ?? ''" @change="set(p.name, ($event.target as HTMLSelectElement).value)">
           <option v-if="!p.required" value="">—</option>
-          <option v-for="c in p.choices" :key="String(c)" :value="String(c)">{{ c }}</option>
+          <option v-for="c in optionsOf(p)" :key="String(c)" :value="String(c)">{{ c }}</option>
         </select>
 
         <div v-else-if="p.type === 'multichoice'" class="flex flex-wrap gap-2">
           <button
-            v-for="c in p.choices"
+            v-for="c in optionsOf(p)"
             :key="String(c)"
             type="button"
             class="chip border transition"
@@ -81,6 +101,22 @@ onMounted(() => {
           class="input file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:text-accent-2 file:px-3 file:py-1 file:text-xs"
           @change="set(p.name, ($event.target as HTMLInputElement).files?.[0] ?? null)"
         />
+
+        <!-- Texte avec liste dynamique : saisie libre + suggestions filtrées au fil de la frappe -->
+        <template v-else-if="p.choices_from">
+          <input
+            type="text"
+            class="input"
+            :list="`dl-${p.name}`"
+            autocomplete="off"
+            :placeholder="p.placeholder || (dynamic[p.name]?.length ? `${dynamic[p.name].length} valeur(s) : tapez pour filtrer` : undefined)"
+            :value="modelValue[p.name] ?? ''"
+            @input="set(p.name, ($event.target as HTMLInputElement).value)"
+          />
+          <datalist :id="`dl-${p.name}`">
+            <option v-for="c in dynamic[p.name] ?? []" :key="c" :value="c" />
+          </datalist>
+        </template>
 
         <input
           v-else

@@ -60,6 +60,8 @@ export interface ParamSpec {
   required: boolean;
   default?: unknown;
   choices?: (string | number)[];
+  /** « table.colonne » d'une table de la mini-app : les valeurs sont chargées depuis le serveur. */
+  choices_from?: string;
   pass: 'positional' | 'option' | 'env';
   as?: string;
   min?: number;

@@ -207,12 +207,13 @@ async function resetAppData(): Promise<void> {
 
     <!-- Mini-app / Suivi -->
     <div v-if="tab === 'app' && script.spec.app">
+      <div class="mb-3 flex flex-wrap items-center gap-3 text-xs text-muted">
+        <span>{{ script.spec.app.title || 'Suivi' }} · {{ Object.keys(script.spec.app.tables).length }} table(s) : {{ Object.keys(script.spec.app.tables).join(', ') }}</span>
+        <span class="flex-1" />
+        <button type="button" class="btn-soft" @click="resetAppData"><Trash2 class="h-4 w-4 text-err" /> Nettoyer les données de cette app</button>
+      </div>
       <iframe v-if="appPageUrl" :key="appKey" :src="appPageUrl" class="w-full rounded-2xl border border-border bg-bg-elev" style="height: 75vh" title="Sous-app du script" />
       <AppPanel v-else :key="appKey" :slug="script.slug" :app="script.spec.app" />
-      <div class="mt-3 flex items-center justify-end gap-3 text-xs text-muted">
-        <span>{{ Object.keys(script.spec.app.tables).length }} table(s) de suivi</span>
-        <button type="button" class="btn-soft text-err" @click="resetAppData"><Trash2 class="h-4 w-4" /> Remettre à zéro les données</button>
-      </div>
     </div>
 
     <!-- Aperçu -->
@@ -220,7 +221,7 @@ async function resetAppData(): Promise<void> {
       <div class="lg:col-span-3 card p-5">
         <h2 class="font-semibold mb-4 flex items-center gap-2"><Play class="h-4 w-4 text-accent-2" /> Lancer</h2>
         <form @submit.prevent="launch">
-          <ParamForm v-model="values" :params="script.spec.params" compact />
+          <ParamForm v-model="values" :params="script.spec.params" :slug="script.slug" compact />
           <div class="mt-5 flex items-center gap-3">
             <button class="btn-primary" :disabled="busy || blocked"><Play class="h-4 w-4" /> Lancer maintenant</button>
             <span v-if="blocked && script.status === 'ok'" class="text-xs text-warn">Environnement non prêt ({{ ENV_STATUS[script.env_status].label }}).</span>

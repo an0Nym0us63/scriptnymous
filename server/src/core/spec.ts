@@ -17,6 +17,8 @@ export const ParamSchema = z
     required: z.boolean().default(false),
     default: z.any().optional(),
     choices: z.array(z.union([z.string(), z.number()])).optional(),
+    // Valeurs proposées depuis une table de la mini-app : « table.colonne » (liste filtrée au fil de la frappe).
+    choices_from: z.string().regex(/^[a-z][a-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/, 'choices_from attend « table.colonne »').optional(),
     pass: z.enum(PassModes).default('positional'),
     // Nom de l'option (--nom) ou de la variable d'environnement ; par défaut dérivé de `name`.
     as: z.string().optional(),
@@ -199,8 +201,14 @@ export function validateSpec(raw: unknown): ScriptSpec {
     ids.add(s.id!);
   }
   for (const p of spec.params) {
-    if ((p.type === 'choice' || p.type === 'multichoice') && !p.choices?.length)
-      throw new SpecError(`Le paramètre « ${p.name} » doit fournir des choix (choices)`);
+    if ((p.type === 'choice' || p.type === 'multichoice') && !p.choices?.length && !p.choices_from)
+      throw new SpecError(`Le paramètre « ${p.name} » doit fournir des choix (choices ou choices_from)`);
+    if (p.choices_from) {
+      const [table, column] = p.choices_from.split('.');
+      const t = spec.app?.tables[table];
+      if (!t) throw new SpecError(`Le paramètre « ${p.name} » : choices_from vise une table inconnue de la section app (${table})`);
+      if (!(column in t.columns)) throw new SpecError(`Le paramètre « ${p.name} » : choices_from vise une colonne inconnue (${table}.${column})`);
+    }
   }
   if (spec.app) validateApp(spec.app);
   return spec;

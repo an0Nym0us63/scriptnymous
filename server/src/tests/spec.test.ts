@@ -63,6 +63,17 @@ describe('parseSpec', () => {
     expect(() => parseSpec('name: x\ninterpreter: bash\nfile: a.sh\nparams:\n  - name: p\n    type: choice\n')).toThrow(/choix/);
   });
 
+  it('choices_from : accepte table.colonne de la section app, refuse le reste', () => {
+    const base = 'name: x\ninterpreter: bash\nfile: a.sh\napp:\n  tables:\n    channels: { key: name, columns: { name: text!, url: text } }\n';
+    const ok = parseSpec(base + 'params:\n  - name: channel\n    choices_from: channels.name\n');
+    expect(ok.params[0].choices_from).toBe('channels.name');
+    expect(() => parseSpec(base + 'params:\n  - name: channel\n    choices_from: nope.name\n')).toThrow(/table inconnue/);
+    expect(() => parseSpec(base + 'params:\n  - name: channel\n    choices_from: channels.nope\n')).toThrow(/colonne inconnue/);
+    expect(() => parseSpec(base + 'params:\n  - name: channel\n    choices_from: channels\n')).toThrow();
+    // un choice peut tirer ses valeurs d'une table, sans liste statique
+    expect(parseSpec(base + 'params:\n  - name: channel\n    type: choice\n    choices_from: channels.name\n').params[0].type).toBe('choice');
+  });
+
   it('refuse les clés inconnues et le YAML cassé', () => {
     expect(() => parseSpec('name: x\ninterpreter: bash\nfile: a.sh\nfoo: 1\n')).toThrow(/foo/);
     expect(() => parseSpec('name: [')).toThrow(/YAML invalide/);

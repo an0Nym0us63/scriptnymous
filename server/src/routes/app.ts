@@ -150,6 +150,23 @@ export async function registerAppRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  /** Valeurs proposées pour un paramètre déclaré avec `choices_from: table.colonne` (filtre ?q=). */
+  app.get('/api/scripts/:slug/params/:name/choices', async (req, reply) => {
+    const { slug, name } = req.params as { slug: string; name: string };
+    const s = script(slug, reply);
+    if (!s || !guard(req, reply, slug)) return;
+    const p = s.spec.params.find((x) => x.name === name);
+    if (!p?.choices_from) return reply.code(404).send({ error: 'Ce paramètre n’a pas de liste dynamique' });
+    const [table, column] = p.choices_from.split('.');
+    const q = (req.query as { q?: string }).q ?? '';
+    try {
+      appdb.ensure(slug, s.spec.app);
+      return { choices: appdb.distinct(slug, s.spec.app, table, column, q) };
+    } catch (e) {
+      return onError(e, reply);
+    }
+  });
+
   /** Remise à zéro des données de la mini-app : toutes les tables (ou ?tables=a,b) et, avec ?files=1, le dossier de fichiers. */
   app.delete('/api/scripts/:slug/app', async (req, reply) => {
     const { slug } = req.params as { slug: string };

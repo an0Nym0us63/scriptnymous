@@ -214,6 +214,16 @@ export class AppDbManager {
     return this.open(slug).prepare(`DELETE FROM "${name}"${where.length ? ' WHERE ' + where.join(' AND ') : ''}`).run(...(args as never[])).changes as number;
   }
 
+  /** Valeurs distinctes d'une colonne (listes de choix des paramètres), filtre texte facultatif, triées, plafonnées. */
+  distinct(slug: string, app: AppSpec | undefined, name: string, column: string, q = '', limit = 500): string[] {
+    const t = this.table(app, name);
+    if (!parseColumns(t).some((c) => c.name === column)) throw new AppDbError(`${name} : colonne inconnue « ${column} »`);
+    const rows = this.open(slug)
+      .prepare(`SELECT DISTINCT "${column}" AS v FROM "${name}" WHERE "${column}" IS NOT NULL AND "${column}" != '' ${q ? `AND "${column}" LIKE ? ` : ''}ORDER BY "${column}" COLLATE NOCASE LIMIT ?`)
+      .all(...((q ? [`%${q}%`, limit] : [limit]) as never[])) as { v: unknown }[];
+    return rows.map((r) => String(r.v));
+  }
+
   list(slug: string, app: AppSpec | undefined, name: string, opts: ListOptions = {}): { rows: Record<string, unknown>[]; total: number } {
     const t = this.table(app, name);
     const cols = parseColumns(t);
