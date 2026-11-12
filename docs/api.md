@@ -34,6 +34,8 @@ dans Réglages). Toutes les réponses sont en JSON ; une erreur renvoie `{ "erro
 | POST    | `/api/scripts/:slug/env/rebuild`    | reconstruit l'environnement de dépendances                                  |
 | DELETE  | `/api/scripts/:slug/queue`          | vide la file d'attente du script                                            |
 | GET     | `/api/groups`                       | `{ groups: [...] }`                                                         |
+| GET     | `/api/browse?path=`                 | explorateur de `/scripts` (dossiers, fichiers, `declared`)                  |
+| GET     | `/api/browse/file?path=`            | contenu texte d'un fichier de `/scripts` (1 Mo max)                        |
 
 Réponses de `POST …/run` :
 

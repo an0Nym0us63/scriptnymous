@@ -3,7 +3,8 @@ import type { FastifyInstance } from 'fastify';
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { paths } from '../config.js';
+import { config, paths } from '../config.js';
+import fsp from 'node:fs/promises';
 import type { ScriptRecord } from '../db/repo.js';
 import { parseSpec, SpecError, validateSpec, ScheduleSchema, isValidSlug } from '../core/spec.js';
 import { nextOccurrences, ScheduleError, validateCron } from '../core/schedule.js';
@@ -180,6 +181,57 @@ export async function registerScriptRoutes(app: FastifyInstance): Promise<void> 
       }
     }
     return { schedules: out };
+  });
+
+  /** Explorateur du dossier des scripts (lecture seule) : ?path=<relatif> → dossiers et fichiers. */
+  app.get('/api/browse', async (req, reply) => {
+    const q = req.query as { path?: string };
+    const rel = (q.path ?? '').split('\\').join('/').replace(/^\/+|\/+$/g, '');
+    const root = path.resolve(config.scriptsDir);
+    const abs = path.resolve(root, rel);
+    if (abs !== root && !abs.startsWith(root + path.sep)) return reply.code(400).send({ error: 'Chemin hors du dossier des scripts' });
+    let entries;
+    try {
+      entries = await fsp.readdir(abs, { withFileTypes: true });
+    } catch {
+      return reply.code(404).send({ error: 'Dossier introuvable ou inaccessible' });
+    }
+    const items = [];
+    for (const e of entries) {
+      if (e.name.startsWith('.')) continue;
+      const p = path.join(abs, e.name);
+      let size = 0;
+      let mtime: string | null = null;
+      try {
+        const st = await fsp.stat(p);
+        size = st.size;
+        mtime = st.mtime.toISOString();
+      } catch {
+        continue;
+      }
+      items.push({ name: e.name, type: e.isDirectory() ? 'dir' : 'file', size, mtime, declared: e.isDirectory() && fs.existsSync(path.join(p, 'script.yaml')) });
+    }
+    items.sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1));
+    return { path: rel, items };
+  });
+
+  /** Contenu texte d'un fichier du dossier des scripts (1 Mo maximum). */
+  app.get('/api/browse/file', async (req, reply) => {
+    const q = req.query as { path?: string };
+    const rel = (q.path ?? '').split('\\').join('/').replace(/^\/+/, '');
+    const root = path.resolve(config.scriptsDir);
+    const abs = path.resolve(root, rel);
+    if (!abs.startsWith(root + path.sep)) return reply.code(400).send({ error: 'Chemin hors du dossier des scripts' });
+    try {
+      const st = await fsp.stat(abs);
+      if (!st.isFile()) return reply.code(400).send({ error: 'Pas un fichier' });
+      if (st.size > 1024 * 1024) return reply.code(413).send({ error: 'Fichier trop volumineux pour l’éditeur (1 Mo max)' });
+      const buf = await fsp.readFile(abs);
+      if (buf.includes(0)) return reply.code(415).send({ error: 'Fichier binaire' });
+      return { path: rel, content: buf.toString('utf8') };
+    } catch {
+      return reply.code(404).send({ error: 'Fichier introuvable' });
+    }
   });
 
   app.get('/api/groups', async () => {

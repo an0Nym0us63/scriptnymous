@@ -4,7 +4,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import YAML from 'yaml';
-import { ArrowLeft, Plus, Trash2, Save, GripVertical, Wand2 } from 'lucide-vue-next';
+import { ArrowLeft, Plus, Trash2, Save, GripVertical, Wand2, FolderOpen } from 'lucide-vue-next';
 import { api, ApiError, type ScriptDetail, type ScriptSpec, type ParamSpec, type ScheduleSpec } from '@/lib/api';
 import { useApp } from '@/stores/app';
 import { useScripts } from '@/stores/scripts';
@@ -12,6 +12,7 @@ import { CONCURRENCY, describeCron, fmtDateShort, NOTIFY_EVENTS } from '@/lib/fo
 import AppIcon from '@/components/AppIcon.vue';
 import CodeEditor from '@/components/CodeEditor.vue';
 import ParamForm from '@/components/ParamForm.vue';
+import FileBrowser from '@/components/FileBrowser.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -197,6 +198,38 @@ function preview(s: ScheduleSpec): void {
 }
 const excludeText = (s: ScheduleSpec) => (Array.isArray(s.exclude_days) ? s.exclude_days.join(', ') : String(s.exclude_days));
 
+// ---- Explorateur de /scripts ----
+const browsing = ref(false);
+const EXT_LANG: Record<string, ScriptSpec['interpreter']> = { sh: 'bash', bash: 'bash', py: 'python3', js: 'node', mjs: 'node', cjs: 'node' };
+/** Fichier choisi dans /scripts : fixe l'identifiant (dossier), le fichier, l'interpréteur probable et charge le code. */
+async function pickFile(rel: string): Promise<void> {
+  browsing.value = false;
+  const parts = rel.split('/');
+  if (parts.length < 2) return app.toast('warn', 'Fichier à la racine', 'Placez le script dans son propre sous-dossier de /scripts.');
+  const folder = parts[0];
+  const file = parts.slice(1).join('/');
+  if (isNew.value) {
+    slug.value = folder;
+    slugTouched.value = true;
+    if (!spec.name) spec.name = folder.replace(/[-_]+/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+  } else if (folder !== slug.value) {
+    return app.toast('warn', 'Mauvais dossier', `Le fichier doit être dans /scripts/${slug.value}/.`);
+  }
+  spec.file = file;
+  const ext = file.split('.').pop()?.toLowerCase() ?? '';
+  if (EXT_LANG[ext]) {
+    mode.value = 'interpreter';
+    spec.interpreter = EXT_LANG[ext];
+  }
+  try {
+    const r = await api.get<{ content: string }>(`/api/browse/file?path=${encodeURIComponent(rel)}`);
+    code.value = r.content;
+    app.toast('ok', 'Fichier chargé', rel);
+  } catch (e) {
+    app.toast('warn', 'Code non chargé', (e as Error).message);
+  }
+}
+
 // ---- Enregistrement ----
 async function save(): Promise<void> {
   error.value = '';
@@ -254,7 +287,10 @@ function applyYamlToForm(): void {
       <div>
         <label class="label">Identifiant (dossier)</label>
         <input v-model="slug" class="input font-mono" :disabled="!isNew" placeholder="sauvegarde-nocturne" @input="slugTouched = true" />
-        <div class="text-xs text-muted mt-1">Dossier <span class="font-mono">/scripts/{{ slug || '…' }}/</span>, minuscules, chiffres et tirets.</div>
+        <div class="text-xs text-muted mt-1">
+          Dossier <span class="font-mono">/scripts/{{ slug || '…' }}/</span>, minuscules, chiffres et tirets.
+          <button v-if="isNew" type="button" class="ml-1 text-accent-2 hover:underline" @click="browsing = true">Choisir un script déjà présent sur le partage…</button>
+        </div>
       </div>
       <div class="md:col-span-2"><label class="label">Description</label><input v-model="spec.description" class="input" placeholder="Ce que fait le script, en une phrase." /></div>
       <div>
@@ -370,7 +406,13 @@ function applyYamlToForm(): void {
           <select v-model="spec.interpreter" class="input"><option value="bash">bash</option><option value="sh">sh</option><option value="python3">python3</option><option value="node">node</option></select>
         </div>
         <div v-else><label class="label">Commande (le fichier est ajouté en argument)</label><input v-model="spec.command" class="input font-mono" placeholder="php -f" /></div>
-        <div><label class="label">Fichier du script</label><input v-model="spec.file" class="input font-mono" /></div>
+        <div>
+          <label class="label">Fichier du script</label>
+          <div class="flex gap-2">
+            <input v-model="spec.file" class="input font-mono" />
+            <button type="button" class="btn-soft shrink-0" title="Choisir un fichier existant dans /scripts" @click="browsing = true"><FolderOpen class="h-4 w-4" /> Parcourir</button>
+          </div>
+        </div>
         <div><label class="label">Répertoire de travail (relatif au dossier du script)</label><input v-model="spec.workdir" class="input font-mono" placeholder="." /></div>
         <div><label class="label">Délai maximum (secondes, 0 = aucun)</label><input v-model.number="spec.timeout_seconds" type="number" min="0" class="input" /></div>
         <div class="md:col-span-2"><label class="label">Variables d'environnement (une par ligne, CLE=valeur)</label><textarea v-model="envText" class="input font-mono h-24" placeholder="LANG=fr_FR.UTF-8" /></div>
@@ -435,6 +477,8 @@ function applyYamlToForm(): void {
       <div class="flex items-center gap-2 mb-2 text-xs font-semibold uppercase tracking-wide text-muted">{{ spec.file }}<span class="flex-1" /><span v-if="code === null" class="normal-case tracking-normal font-normal">Laisser vide pour générer un squelette.</span></div>
       <CodeEditor :model-value="code ?? ''" :lang="lang" min-height="480px" @update:model-value="code = $event" />
     </div>
+
+    <FileBrowser v-if="browsing" :root="isNew ? undefined : slug" :start="isNew ? undefined : slug" @close="browsing = false" @pick="pickFile" />
 
     <!-- YAML -->
     <div v-show="tab === 'yaml'">
