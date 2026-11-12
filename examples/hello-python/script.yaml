@@ -1,0 +1,44 @@
+# Exemple 2 : script Python avec une dépendance pip (venv créé automatiquement avec uv dans /data/envs/hello-python).
+name: Météo (python)
+description: Interroge l'API publique Open-Meteo pour une ville et affiche la température. Dépend de `requests`.
+group: Exemples
+icon: cloud-sun
+color: "#0ea5e9"
+interpreter: python3
+file: meteo.py
+timeout_seconds: 60
+
+params:
+  - name: ville
+    label: Ville
+    type: choice
+    choices: [Paris, Lyon, Marseille, Lille, Bordeaux]
+    default: Paris
+    pass: option
+  - name: unites
+    label: Unités
+    type: choice
+    choices: [celsius, fahrenheit]
+    default: celsius
+    pass: env
+
+concurrency: queue
+retry:
+  attempts: 3
+  delay_seconds: 30
+  factor: 2
+  no_retry_on: [2]        # code 2 = ville inconnue : inutile de réessayer
+
+schedules:
+  - id: toutes-les-6h
+    cron: "15 */6 * * *"
+    timezone: Europe/Paris
+    enabled: false
+
+notify:
+  events: [final_failure]
+  tags: [sun_behind_cloud]
+
+deps:
+  pip:
+    - requests>=2.31

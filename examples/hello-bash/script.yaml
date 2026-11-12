@@ -1,0 +1,60 @@
+# Exemple 1 : script bash avec paramètres, planification et notification.
+# À copier dans /scripts/hello-bash/ (le nom du dossier est l'identifiant du script).
+name: Bonjour (bash)
+description: Dit bonjour, compte jusqu'à N en montrant la sortie en direct, et peut échouer sur demande.
+group: Exemples
+icon: terminal
+color: "#22c55e"
+interpreter: bash
+file: hello.sh
+timeout_seconds: 120
+
+params:
+  - name: prenom
+    label: Prénom
+    type: text
+    default: monde
+    required: true
+    pass: positional
+  - name: compte
+    label: Compter jusqu'à
+    type: number
+    default: 5
+    min: 1
+    max: 60
+    pass: option          # passé en --compte 5
+  - name: humeur
+    label: Humeur
+    type: choice
+    choices: [joyeuse, calme, grognon]
+    default: joyeuse
+    pass: env             # exposé dans la variable HUMEUR
+  - name: echouer
+    label: Simuler un échec
+    type: boolean
+    default: false
+    pass: option          # ajoute --echouer si coché
+    as: echouer
+
+concurrency: skip         # si une instance tourne encore, la nouvelle est ignorée
+retry:
+  attempts: 2
+  delay_seconds: 15
+
+schedules:
+  - id: matin
+    name: Chaque matin en semaine
+    cron: "0 8 * * 1-5"
+    timezone: Europe/Paris
+    jitter_seconds: 60
+    exclude_days: [2026-12-25]
+    catch_up: true
+    enabled: false        # à activer depuis l'interface
+    params:
+      prenom: planificateur
+      compte: 3
+
+notify:
+  events: [failure, final_failure, missing]
+  priority: 3
+  tags: [wave]
