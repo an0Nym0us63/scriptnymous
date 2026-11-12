@@ -127,6 +127,34 @@ depuis la page Variables), `PYTHONUNBUFFERED=1`.
 Un paramètre `secret` est passé tel quel au script mais stocké masqué (`••••••`) dans l'historique.
 Un paramètre `file` reçoit le chemin du fichier téléversé (`/data/uploads/<id>/<nom>`).
 
+## Notifier depuis un script
+
+Un script n'a pas besoin de connaître ntfy : ScriptNymous lui fournit un canal prêt à l'emploi pendant le run, avec le
+sujet, le serveur et le jeton configurés (globaux, ou surchargés dans `notify:` du script).
+
+| Variable          | Contenu                                                            |
+| ----------------- | ------------------------------------------------------------------ |
+| `SN_NOTIFY_URL`   | `http://127.0.0.1:8080/api/runs/<run>/notify`                      |
+| `SN_RUN_TOKEN`    | jeton jetable, valable pendant le run (et 15 s après sa fin)       |
+
+Corps JSON : `title`, `message`, `tags` (liste), `priority` (1-5), `file` (chemin d'un fichier à joindre, lu par le
+serveur, 15 Mo max), `click` (URL). Tout est facultatif sauf `message`.
+
+```bash
+curl -s -X POST "$SN_NOTIFY_URL" -H "Authorization: Bearer $SN_RUN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"title":"Sauvegarde","message":"42 fichiers copiés","tags":["floppy_disk"],"priority":3}'
+```
+
+```python
+import json, os, urllib.request
+req = urllib.request.Request(os.environ["SN_NOTIFY_URL"], method="POST",
+    data=json.dumps({"title": "Photo traitée", "message": "IMG_0001.jpg", "file": "/tmp/vignette.jpg"}).encode(),
+    headers={"Authorization": f"Bearer {os.environ['SN_RUN_TOKEN']}", "Content-Type": "application/json"})
+urllib.request.urlopen(req, timeout=30)
+```
+
+Les notifications envoyées ainsi apparaissent dans le journal des notifications (Réglages) comme les autres.
+
 ## Politique de concurrence
 
 | Valeur     | Si une instance tourne encore…                                  |

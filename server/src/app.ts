@@ -98,6 +98,12 @@ export async function buildApp(): Promise<FastifyInstance> {
     if (!url.startsWith('/api/')) return;
     if (url === '/api/auth/login' || url === '/api/auth/status') return;
     const header = req.headers.authorization;
+    // Un script en cours peut notifier via /api/runs/<id>/notify avec le jeton jetable de son run.
+    const m = /^\/api\/runs\/([^/]+)\/notify$/.exec(url);
+    if (m && header?.startsWith('Bearer ') && runner.validRunToken(m[1], header.slice(7))) {
+      req.authKind = 'token';
+      return;
+    }
     if (header?.startsWith('Bearer ')) {
       if (auth.validApiToken(header.slice(7))) {
         req.authKind = 'token';

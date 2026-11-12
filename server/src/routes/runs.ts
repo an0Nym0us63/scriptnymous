@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import fsp from 'node:fs/promises';
 import { readLogSlice } from '../services/logs.js';
 import { bus } from '../core/events.js';
+import { z } from 'zod';
 
 export async function registerRunRoutes(app: FastifyInstance): Promise<void> {
   const { repo, orchestrator } = app.services;
@@ -64,6 +65,27 @@ export async function registerRunRoutes(app: FastifyInstance): Promise<void> {
     repo.deleteRun(id);
     bus.emit('run:updated', { run: { ...run, status: 'skipped' } });
     return { ok: true };
+  });
+
+  /** Notification ntfy émise par le script lui-même (SN_NOTIFY_URL + SN_RUN_TOKEN), ou par l'API. */
+  const NotifyBody = z.object({
+    title: z.string().max(200).optional(),
+    message: z.string().max(8000).default(''),
+    tags: z.array(z.string()).max(10).optional(),
+    priority: z.number().int().min(1).max(5).optional(),
+    file: z.string().max(1024).optional(),
+    click: z.string().url().optional(),
+  });
+  app.post('/api/runs/:id/notify', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const run = repo.getRun(id);
+    if (!run) return reply.code(404).send({ error: 'Run inconnu' });
+    const script = repo.getScript(run.script_slug);
+    if (!script) return reply.code(404).send({ error: 'Script inconnu' });
+    const body = NotifyBody.safeParse(req.body ?? {});
+    if (!body.success) return reply.code(400).send({ error: body.error.issues.map((i) => `${i.path.join('.')} : ${i.message}`).join(' ; ') });
+    const r = await app.services.notifier.custom(script, run, body.data);
+    return r.ok ? { ok: true } : reply.code(502).send({ error: r.error });
   });
 
   app.get('/api/queue', async () => ({ queue: repo.listQueue() }));

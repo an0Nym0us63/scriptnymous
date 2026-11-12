@@ -68,6 +68,7 @@ curl -X POST https://scripts.exemple.fr/api/scripts/hello-bash/run \
 | GET     | `/api/runs/:id/log`            | `?from=<octets>` (suite) ou `?tail=1` → `{ text, offset, size, status }` |
 | GET     | `/api/runs/:id/log/download`   | journal complet en `text/plain`                                    |
 | POST    | `/api/runs/:id/stop`           | SIGTERM puis SIGKILL après le délai de grâce                       |
+| POST    | `/api/runs/:id/notify`         | notification ntfy au nom du script : `{ title?, message, tags?, priority?, file?, click? }` ; accepte aussi le jeton de run `SN_RUN_TOKEN` |
 | DELETE  | `/api/runs/:id`                | supprime le run et son journal                                     |
 | GET     | `/api/queue`                   | file d'attente globale                                             |
 | DELETE  | `/api/queue/:id`               | retire un élément de la file                                       |

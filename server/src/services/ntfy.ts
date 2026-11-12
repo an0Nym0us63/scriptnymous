@@ -68,6 +68,46 @@ export class Notifier {
     await this.send(server, topic, headers, body, script.slug, run?.id ?? null, event);
   }
 
+  /** Notification libre émise par un script pendant son run (sujet/serveur/jeton du script, sinon globaux). */
+  async custom(
+    script: ScriptRecord,
+    run: RunRow,
+    msg: { title?: string; message: string; tags?: string[]; priority?: number; file?: string; click?: string },
+  ): Promise<{ ok: boolean; error?: string }> {
+    const n = script.spec.notify;
+    const g = this.settings.get();
+    const server = (n.server ?? g.ntfy_server).replace(/\/$/, '');
+    const topic = n.topic ?? g.ntfy_topic;
+    const token = n.token ?? g.ntfy_token;
+    if (!server || !topic) return { ok: false, error: 'ntfy non configuré (serveur ou sujet manquant)' };
+    const headers: Record<string, string> = {
+      Title: msg.title ?? script.spec.name,
+      Priority: String(Math.min(5, Math.max(1, msg.priority ?? n.priority))),
+      Tags: (msg.tags?.length ? msg.tags : n.tags).join(','),
+    };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (msg.click) headers.Click = msg.click;
+    else if (g.public_url) headers.Click = `${g.public_url}/runs/${run.id}`;
+    let body: string | Buffer = msg.message;
+    if (msg.file) {
+      // Le serveur lit lui-même la pièce jointe (même machine que le script) ; 15 Mo max comme ntfy par défaut.
+      const fs = await import('node:fs/promises');
+      const pathMod = await import('node:path');
+      try {
+        const st = await fs.stat(msg.file);
+        if (!st.isFile()) return { ok: false, error: 'file : pas un fichier' };
+        if (st.size > 15 * 1024 * 1024) return { ok: false, error: 'file : pièce jointe trop volumineuse (15 Mo max)' };
+        body = await fs.readFile(msg.file);
+        headers.Filename = pathMod.basename(msg.file);
+        headers.Message = msg.message;
+        headers['Content-Type'] = 'application/octet-stream';
+      } catch (e) {
+        return { ok: false, error: `file : ${(e as Error).message}` };
+      }
+    } else headers['Content-Type'] = 'text/plain; charset=utf-8';
+    return this.send(server, topic, headers, body, script.slug, run.id, 'custom', msg.file ? 'PUT' : 'POST');
+  }
+
   /** Envoi de test depuis la page Réglages. */
   async test(): Promise<{ ok: boolean; error?: string }> {
     const g = this.settings.get();
@@ -81,10 +121,11 @@ export class Notifier {
     server: string,
     topic: string,
     headers: Record<string, string>,
-    body: string,
+    body: string | Buffer,
     slug: string | null,
     runId: string | null,
     event: string,
+    method: 'POST' | 'PUT' = 'POST',
   ): Promise<{ ok: boolean; error?: string }> {
     // Les en-têtes HTTP n'acceptent pas l'UTF-8 brut : ntfy supporte l'encodage RFC 2047 pour Title.
     const safeHeaders = Object.fromEntries(
@@ -92,9 +133,9 @@ export class Notifier {
     );
     try {
       const res = await fetch(`${server}/${encodeURIComponent(topic)}`, {
-        method: 'POST',
+        method,
         headers: safeHeaders,
-        body,
+        body: body as BodyInit,
         signal: AbortSignal.timeout(10_000),
       });
       const ok = res.ok;

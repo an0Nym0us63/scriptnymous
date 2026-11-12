@@ -1,5 +1,6 @@
 // Lanceur : démarre le processus d'un run, capture la sortie vers un fichier journal et le bus, gère le délai maximum.
 import { spawn, type ChildProcess } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { config, paths } from '../config.js';
@@ -46,6 +47,14 @@ export class Runner {
 
   /** Fournisseur du chemin du fichier de variables (réglage), injecté par l'application. */
   configFile: () => string = () => path.join(config.scriptsDir, 'config.json');
+  /** Jetons jetables par run : permettent au script de notifier via l'API sans connaître ntfy. */
+  readonly runTokens = new Map<string, string>();
+
+  /** Vrai si `token` est le jeton du run `runId` encore vivant. */
+  validRunToken(runId: string, token: string): boolean {
+    const t = this.runTokens.get(runId);
+    return !!t && t === token;
+  }
 
   constructor(private readonly repo: Repo) {}
 
@@ -69,6 +78,8 @@ export class Runner {
     const logFd = fs.openSync(logPath, 'a');
 
     const pathSep = isWindows ? ';' : ':';
+    const runToken = randomBytes(24).toString('base64url');
+    this.runTokens.set(run.id, runToken);
     const env: Record<string, string> = {
       ...(process.env as Record<string, string>),
       ...spec.env,
@@ -82,6 +93,9 @@ export class Runner {
       SN_DATA_DIR: config.dataDir,
       SN_SCRIPTS_DIR: config.scriptsDir,
       SN_CONFIG_FILE: this.configFile(),
+      // Canal de notification fourni par ScriptNymous : POST JSON { title, message, tags, priority, file }.
+      SN_NOTIFY_URL: `http://127.0.0.1:${config.port}/api/runs/${run.id}/notify`,
+      SN_RUN_TOKEN: runToken,
       PYTHONUNBUFFERED: '1',
       FORCE_COLOR: process.env.FORCE_COLOR ?? '0',
     };
@@ -213,6 +227,8 @@ export class Runner {
     if (live.graceTimer) clearTimeout(live.graceTimer);
     if (live.heartbeat) clearInterval(live.heartbeat);
     this.live.delete(live.run.id);
+    // Le jeton reste valable quelques secondes : un script peut notifier juste avant de sortir.
+    setTimeout(() => this.runTokens.delete(live.run.id), 15_000).unref();
 
     let status: RunRow['status'];
     if (live.stopRequested) status = live.run.status === 'timeout' ? 'timeout' : 'killed';
