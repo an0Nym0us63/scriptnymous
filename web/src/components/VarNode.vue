@@ -17,6 +17,24 @@ const secret = computed(() => isSecretKey(key.value));
 const shown = computed(() => !secret.value || store.revealed.has(pathKey.value));
 
 const collapsed = ref(props.depth > 0);
+
+/** Résumé d'un conteneur replié : champ « nom » s'il existe, sinon première valeur simple. */
+const SUMMARY_KEYS = ['name', 'nom', 'title', 'titre', 'label', 'libelle', 'id', 'slug', 'key', 'url', 'host', 'ip', 'path'];
+const summary = computed(() => {
+  const v = props.value;
+  if (v === null || typeof v !== 'object') return '';
+  if (Array.isArray(v)) {
+    const firsts = v.slice(0, 3).map((x) => (x !== null && typeof x === 'object' ? null : String(x))).filter((x): x is string => x !== null);
+    return firsts.length ? firsts.join(', ') + (v.length > 3 ? ', …' : '') : '';
+  }
+  const o = v as Record<string, JsonValue>;
+  for (const k of SUMMARY_KEYS) {
+    const found = Object.keys(o).find((ok) => ok.toLowerCase() === k);
+    if (found !== undefined && o[found] !== null && typeof o[found] !== 'object') return String(o[found]);
+  }
+  const first = Object.values(o).find((x) => x !== null && typeof x !== 'object');
+  return first === undefined ? '' : String(first);
+});
 const open = computed(() => (props.filter ? true : !collapsed.value));
 
 /** Entrées enfants, filtrées (une entrée reste si son chemin ou une de ses valeurs contient le filtre). */
@@ -108,7 +126,8 @@ const TYPE_LABEL: Record<string, string> = { string: 'texte', number: 'nombre', 
 
       <!-- Valeur -->
       <template v-if="isContainer">
-        <span class="chip bg-surface-3 text-muted">{{ TYPE_LABEL[kind] }} · {{ Array.isArray(value) ? value.length : Object.keys(value as object).length }}</span>
+        <span class="chip bg-surface-3 text-muted shrink-0">{{ TYPE_LABEL[kind] }} · {{ Array.isArray(value) ? value.length : Object.keys(value as object).length }}</span>
+        <span v-if="!open && summary" class="text-sm text-text-2 truncate min-w-0" :title="summary">{{ summary }}</span>
         <span class="flex-1" />
         <button class="btn-ghost px-2 py-1 text-xs opacity-0 group-hover/row:opacity-100 focus:opacity-100" @click="adding = !adding"><Plus class="h-3.5 w-3.5" /> {{ Array.isArray(value) ? 'élément' : 'clé' }}</button>
       </template>
