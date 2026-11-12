@@ -1,0 +1,52 @@
+# ScriptNymous : un seul conteneur, deux volumes.
+#   /scripts : partage NAS monté par l'hôte (scripts + script.yaml). Remplacer le chemin ci-dessous.
+#   /data    : local au serveur (base SQLite, journaux, environnements, binaires, cache apt).
+# Déploiement type : Portainer (stack) derrière Nginx Proxy Manager qui expose le port 8080 en HTTPS
+# (activer « Websockets Support » dans le proxy host).
+services:
+  scriptnymous:
+    image: scriptnymous:latest
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: scriptnymous
+    restart: unless-stopped
+    env_file:
+      - .env                       # copie de ../.env.example, jamais commitée
+    environment:
+      TZ: ${TZ:-Europe/Paris}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+    ports:
+      - "8080:8080"               # à retirer si seul le reverse proxy y accède (réseau partagé)
+    volumes:
+      # ---- /scripts : partage NAS. Au choix :
+      # a) bind d'un point de montage déjà fait par l'hôte (CIFS/NFS via fstab) :
+      - /mnt/nas/scripts:/scripts
+      # b) ou volume CIFS géré par Docker (décommenter ci-dessous et le bloc `volumes:` en bas) :
+      # - scripts-nas:/scripts
+      # ---- /data : stockage local persistant
+      - scriptnymous-data:/data
+    # Nécessaire pour que les scripts voient l'heure locale de l'hôte sans dépendre de TZ :
+    # - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    # Exemple de raccordement au réseau de Nginx Proxy Manager :
+    # networks: [proxy]
+
+volumes:
+  scriptnymous-data:
+  # scripts-nas:
+  #   driver: local
+  #   driver_opts:
+  #     type: cifs
+  #     o: "username=${NAS_USER},password=${NAS_PASSWORD},uid=${PUID:-1000},gid=${PGID:-1000},vers=3.0,iocharset=utf8"
+  #     device: "//192.168.1.10/scripts"
+
+# networks:
+#   proxy:
+#     external: true
