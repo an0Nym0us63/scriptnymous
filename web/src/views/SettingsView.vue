@@ -160,6 +160,8 @@ async function changePassword(): Promise<void> {
       <pre class="mt-4 terminal p-3 text-xs whitespace-pre-wrap">curl -X POST {{ form.public_url || origin }}/api/scripts/&lt;slug&gt;/run \
   -H "Authorization: Bearer &lt;jeton&gt;" -H "Content-Type: application/json" \
   -d '{"params": {"prenom": "api"}}'</pre>
+      <p class="text-sm text-text-2 mt-4 mb-2">Le même jeton sert au <strong>serveur MCP</strong> (assistants type Claude Code) :</p>
+      <pre class="terminal p-3 text-xs whitespace-pre-wrap">claude mcp add --transport http scriptnymous {{ form.public_url || origin }}/api/mcp   --header "Authorization: Bearer &lt;jeton&gt;"</pre>
     </section>
 
     <section class="card p-5 mt-5">

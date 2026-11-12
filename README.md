@@ -30,6 +30,8 @@ Remplaçant personnel de script-server, dans la lignée de BambuNymous.
   processus perdu), priorité, étiquettes, lien vers le run.
 - **Interface** Vue 3 + Tailwind : thème sombre et clair, mobile, PWA, tableau de bord par groupe, page de run,
   historique filtrable, planifications, réglages.
+- **Serveur MCP intégré** (`/api/mcp`) : un assistant (Claude Code, Claude Desktop…) peut lister, lire, créer, modifier et
+  lancer les scripts, suivre les runs, gérer planifications, variables et réglages. Voir [docs/mcp.md](docs/mcp.md).
 - **Un seul utilisateur** : mot de passe par variable d'environnement (haché en base), session cookie, jeton d'API.
 
 ## Installation (Docker / Portainer)
@@ -101,7 +103,7 @@ curl -X POST https://scripts.exemple.fr/api/scripts/hello-bash/run \
   -d '{"params": {"prenom": "api"}}'
 ```
 
-Détail des routes : [docs/api.md](docs/api.md).
+Détail des routes : [docs/api.md](docs/api.md). Serveur MCP pour les assistants : [docs/mcp.md](docs/mcp.md).
 
 ## Développement
 
@@ -124,6 +126,7 @@ En dev, `SN_SCRIPTS_DIR=../scripts-local` et `SN_DATA_DIR=../data` (voir `server
 - [docs/decisions.md](docs/decisions.md) : choix techniques et leurs raisons.
 - [docs/format-script.md](docs/format-script.md) : format `script.yaml`.
 - [docs/api.md](docs/api.md) : API REST et websocket.
+- [docs/mcp.md](docs/mcp.md) : serveur MCP (outils exposés, connexion depuis Claude Code / Claude Desktop).
 
 ## Licence
 

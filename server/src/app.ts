@@ -28,6 +28,7 @@ import { registerSettingsRoutes } from './routes/settings.js';
 import { registerWsRoutes } from './routes/ws.js';
 import { registerActivityRoutes } from './routes/activity.js';
 import { configPath, registerVariableRoutes } from './routes/variables.js';
+import { registerMcpRoutes } from './routes/mcp.js';
 
 export interface Services {
   db: DB;
@@ -130,6 +131,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerWsRoutes(app);
   await registerActivityRoutes(app);
   await registerVariableRoutes(app);
+  await registerMcpRoutes(app);
 
   app.setErrorHandler((err: Error & { statusCode?: number }, req, reply) => {
     const status = (err as { statusCode?: number }).statusCode ?? 500;
