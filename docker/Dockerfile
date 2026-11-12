@@ -38,10 +38,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PATH=/data/bin:/root/.local/bin:$PATH
 
 # Socle d'outils disponibles pour tous les scripts (les paquets propres à un script s'ajoutent à chaud via `deps.apt`).
+# Outils multi-usages inclus d'office : ffmpeg (vidéos, vignettes), imagemagick, exiftool, sqlite3, 7zip/zip, mediainfo,
+# rclone, smbclient et quelques outils réseau. Ils ne sont jamais proposés comme dépendances.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       bash coreutils procps ca-certificates tzdata curl wget jq git rsync openssh-client \
-      python3 python3-venv python3-pip unzip xz-utils gosu sudo \
+      python3 python3-venv python3-pip unzip zip xz-utils p7zip-full gosu sudo \
+      ffmpeg imagemagick libimage-exiftool-perl sqlite3 mediainfo rclone smbclient dnsutils iputils-ping netcat-openbsd \
  && rm -rf /var/lib/apt/lists/*
 
 # uv : création rapide des venv par script.

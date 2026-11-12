@@ -15,14 +15,15 @@ describe('suggestions de dépendances', () => {
   });
 
   it('déduit les paquets apt des commandes bash, sans le socle de l’image', () => {
-    const code = `#!/usr/bin/env bash\nset -e\nFOO=1 ffmpeg -i a.mp4 b.mkv | tee log\ncurl -s x | jq .\nsudo exiftool -all= *.jpg && convert a.png b.jpg\n`;
-    expect(suggestFromCode('bash', code).map((x) => x.package).sort()).toEqual(['ffmpeg', 'imagemagick', 'libimage-exiftool-perl']);
+    const code = `#!/usr/bin/env bash\nset -e\nFOO=1 ffmpeg -i a.mp4 b.mkv | tee log\ncurl -s x | jq .\nsudo tesseract a.png out && pdftotext a.pdf -\n`;
+    // ffmpeg, imagemagick, exiftool font partie du socle de l'image : jamais suggérés.
+    expect(suggestFromCode('bash', code).map((x) => x.package).sort()).toEqual(['poppler-utils', 'tesseract-ocr']);
   });
 
   it('lit les erreurs d’un journal', () => {
-    const log = `Traceback...\nModuleNotFoundError: No module named 'PIL'\nbash: ligne 3: ffmpeg: command not found\nError: Cannot find module 'dayjs'\n`;
+    const log = `Traceback...\nModuleNotFoundError: No module named 'PIL'\nbash: ligne 3: tesseract: command not found\nError: Cannot find module 'dayjs'\n`;
     const s = suggestFromLog(log);
-    expect(s.map((x) => `${x.kind}:${x.package}`).sort()).toEqual(['apt:ffmpeg', 'npm:dayjs', 'pip:pillow']);
+    expect(s.map((x) => `${x.kind}:${x.package}`).sort()).toEqual(['apt:tesseract-ocr', 'npm:dayjs', 'pip:pillow']);
     expect(s.every((x) => x.fromError)).toBe(true);
   });
 });

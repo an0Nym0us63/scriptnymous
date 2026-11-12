@@ -66,6 +66,12 @@ change. npm : `package.json` généré + `npm install`, `NODE_PATH` posé. apt :
 démarrage (cache `/data/apt-cache`), puis à chaud quand un script ajoute un paquet (via `sudo -n apt-get` limité quand
 PUID ≠ 0). Binaires : téléchargés une fois, SHA-256 vérifié si fourni, `/data/bin` en tête du PATH du run.
 
+## 2026-11-12 — Outils multi-usages dans l'image plutôt qu'en `deps.apt`
+
+ffmpeg, imagemagick, exiftool, sqlite3, 7zip, mediainfo, rclone, smbclient servent à beaucoup de scripts : les
+installer à chaud par script coûte du temps au premier lancement et de l'espace dans le cache apt. Ils sont dans le
+socle de l'image (≈ +350 Mo) et ne sont jamais suggérés comme dépendances. `deps.apt` reste pour les paquets rares.
+
 ## 2026-11-12 — Authentification minimale mais propre
 
 Un utilisateur. `SN_PASSWORD` haché (scrypt) au premier démarrage et stocké en base ; changer la variable ensuite ne

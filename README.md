@@ -20,6 +20,8 @@ Remplaçant personnel de script-server, dans la lignée de BambuNymous.
 - **Robustesse** : politique si une instance tourne encore (`skip`, `queue`, `kill`, `parallel`), retries exponentiels par
   code de sortie, délai maximum (SIGTERM puis SIGKILL), rapprochement avec `/proc` au démarrage, balayage des processus
   fantômes, file d'attente persistante.
+- **Socle d'outils inclus** : bash, python3, node, uv, curl, wget, jq, git, rsync, ssh, ffmpeg, imagemagick, exiftool, sqlite3,
+  7zip/zip, mediainfo, rclone, smbclient, outils réseau.
 - **Dépendances sans reconstruire l'image** : `apt` (à chaud), `pip` (venv `uv` par script), `npm`, binaires téléchargés ;
   suggestions automatiques d'après le code et les journaux d'échec (`No module named 'PIL'` → `pillow`), ajout en un clic.
 - **Variables partagées** : un fichier JSON du partage (`config.json` par défaut, choisi dans Réglages) édité en arbre

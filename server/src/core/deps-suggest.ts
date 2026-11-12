@@ -49,7 +49,8 @@ const BASE_COMMANDS = new Set(
   sed awk grep egrep fgrep find xargs basename dirname realpath readlink env export set unset read seq tar gzip gunzip bzip2 xz unzip
   zip curl wget jq git rsync ssh scp sftp ssh-keygen python3 python pip pip3 node npm npx uv tee stat du df ps kill pkill pgrep nohup
   timeout watch which type command hostname whoami id uname sync nproc free uptime ping openssl md5sum sha256sum sha1sum base64
-  diff cmp patch tr comm join paste fold nl od hexdump strings file mktemp install gosu sudo apt-get dpkg`.split(/\s+/).filter(Boolean),
+  diff cmp patch tr comm join paste fold nl od hexdump strings file mktemp install gosu sudo apt-get dpkg
+  ffmpeg ffprobe ffplay convert magick identify mogrify exiftool sqlite3 7z 7za zip mediainfo rclone smbclient dig nslookup host nc`.split(/\s+/).filter(Boolean),
 );
 
 // Commande → paquet apt (Debian).
