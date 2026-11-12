@@ -25,6 +25,8 @@ beforeAll(() => {
   writeScript(repo, 'slow', yaml('concurrency: skip\n'), 'setTimeout(() => console.log("fin"), 1500);');
   writeScript(repo, 'queued', yaml('concurrency: queue\n'), 'setTimeout(() => console.log("fin"), 600);');
   writeScript(repo, 'flaky', yaml('retry:\n  attempts: 2\n  delay_seconds: 0\n'), 'process.exit(3);');
+  // Échoue sauf avec « ok » : vérifie qu'un succès purge les relances programmées par un échec antérieur.
+  writeScript(repo, 'healed', yaml('params:\n  - name: mode\n    default: ko\nretry:\n  attempts: 3\n  delay_seconds: 3600\n'), "process.exit(process.argv[2] === 'ok' ? 0 : 3);");
   writeScript(repo, 'timeout', yaml('timeout_seconds: 1\n'), 'setInterval(() => {}, 1000);');
   writeScript(repo, 'killer', yaml('concurrency: kill\n'), 'setInterval(() => {}, 1000);');
 });
@@ -79,6 +81,17 @@ describe('orchestrateur', () => {
     expect(second.exit_code).toBe(3);
     await sleep(200);
     expect(repo.listQueue('flaky')).toHaveLength(0); // plus d'essai après le second
+  });
+
+  it('retry : un succès ultérieur annule la relance en attente', async () => {
+    const a = await orch.launch({ slug: 'healed', trigger: 'manual' });
+    if (a.outcome !== 'started') throw new Error(a.outcome);
+    await waitFor(() => repo.listQueue('healed').length === 1);
+    expect(repo.listQueue('healed')[0].trigger).toBe('retry');
+    const b = await orch.launch({ slug: 'healed', trigger: 'manual', params: { mode: 'ok' } });
+    if (b.outcome !== 'started') throw new Error(b.outcome);
+    await waitFor(() => repo.getRun(b.run.id)!.status === 'success');
+    await waitFor(() => repo.listQueue('healed').length === 0);
   });
 
   it('délai maximum : le processus est tué et le run marqué timeout', async () => {

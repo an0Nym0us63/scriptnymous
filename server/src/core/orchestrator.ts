@@ -226,6 +226,12 @@ export class Orchestrator {
       bus.emit('queue:changed', { slug: script.slug });
       this.log.info({ run: run.id, next, delay }, 'Retry programmé');
     } else if (run.status === 'success') {
+      // Un succès rend sans objet les relances programmées par un échec antérieur du même script.
+      const purged = this.repo.clearRetries(script.slug);
+      if (purged) {
+        bus.emit('queue:changed', { slug: script.slug });
+        this.log.info({ run: run.id, purged }, 'Relances en attente annulées après un succès');
+      }
       await this.notifier.notify('success', script, run);
     } else if (run.status === 'lost') {
       await this.notifier.notify('lost', script, run, 'Le processus a disparu pendant un arrêt du service.');

@@ -279,6 +279,10 @@ export class Repo {
   clearQueue(slug: string): number {
     return this.db.prepare('DELETE FROM queue WHERE script_slug = ?').run(slug).changes as number;
   }
+  /** Supprime les relances (trigger « retry ») en attente d'un script : un passage réussi les rend sans objet. */
+  clearRetries(slug: string): number {
+    return this.db.prepare(`DELETE FROM queue WHERE script_slug = ? AND trigger = 'retry'`).run(slug).changes as number;
+  }
 
   // ---------- schedule_state ----------
   getScheduleState(slug: string, scheduleId: string): ScheduleStateRow | null {
