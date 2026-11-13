@@ -149,6 +149,7 @@ async function purgeHistory(failedOnly: boolean): Promise<void> {
   }
 }
 const appKey = ref(0);
+const descOpen = ref(false); // description dépliée sur mobile (repliée à deux lignes par défaut)
 /** Vide les tables de la mini-app (les fichiers de données sont conservés). */
 async function resetAppData(): Promise<void> {
   const tables = Object.keys(script.value?.spec.app?.tables ?? {});
@@ -168,33 +169,38 @@ async function resetAppData(): Promise<void> {
 <template>
   <div v-if="script">
     <!-- En-tête -->
-    <div class="card relative overflow-hidden p-5 mb-5">
+    <!-- Mobile : en-tête compact (titre + actions sur une ligne, description repliée, détails techniques masqués) pour
+         que le contenu utile reste au-dessus de la ligne de flottaison. Desktop : en-tête complet. -->
+    <div class="card relative overflow-hidden p-4 md:p-5 mb-4 md:mb-5">
       <div class="absolute inset-0 opacity-[0.12] pointer-events-none" :style="{ background: `radial-gradient(600px 200px at 0% 0%, ${script.spec.color}, transparent 70%)` }" />
-      <div class="relative flex flex-wrap items-start gap-4">
-        <div class="h-14 w-14 rounded-2xl flex items-center justify-center text-white shrink-0" :style="{ background: script.spec.color }"><AppIcon :name="script.spec.icon" :size="26" /></div>
-        <div class="min-w-0 flex-1">
-          <div class="flex flex-wrap items-center gap-2">
-            <h1 class="text-2xl font-semibold tracking-tight">{{ script.name }}</h1>
-            <span v-if="script.group" class="chip bg-surface-2 text-text-2 border border-border">{{ script.group }}</span>
-            <span v-if="!script.spec.enabled" class="chip bg-warn-soft text-warn">désactivé</span>
-            <span v-if="script.status === 'missing'" class="chip bg-err-soft text-err"><AlertTriangle class="h-3 w-3" /> introuvable depuis {{ relative(script.missing_since, now) }}</span>
-            <span v-if="script.status === 'invalid'" class="chip bg-err-soft text-err"><AlertTriangle class="h-3 w-3" /> déclaration invalide</span>
+      <div class="relative">
+        <div class="flex items-start gap-3 md:gap-4">
+          <div class="h-11 w-11 md:h-14 md:w-14 rounded-2xl flex items-center justify-center text-white shrink-0" :style="{ background: script.spec.color }"><AppIcon :name="script.spec.icon" :size="24" /></div>
+          <div class="min-w-0 flex-1">
+            <h1 class="text-lg md:text-2xl font-semibold tracking-tight leading-tight">{{ script.name }}</h1>
+            <div class="mt-1 flex flex-wrap items-center gap-1.5">
+              <span v-if="script.group" class="chip bg-surface-2 text-text-2 border border-border">{{ script.group }}</span>
+              <span v-if="!script.spec.enabled" class="chip bg-warn-soft text-warn">désactivé</span>
+              <span v-if="script.status === 'missing'" class="chip bg-err-soft text-err"><AlertTriangle class="h-3 w-3" /> introuvable depuis {{ relative(script.missing_since, now) }}</span>
+              <span v-if="script.status === 'invalid'" class="chip bg-err-soft text-err"><AlertTriangle class="h-3 w-3" /> déclaration invalide</span>
+            </div>
           </div>
-          <p class="text-sm text-text-2 mt-1">{{ script.spec.description || 'Aucune description.' }}</p>
-          <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted font-mono">
-            <span>{{ script.slug }}/{{ script.spec.file }}</span>
-            <span>{{ script.spec.command || script.spec.interpreter }}</span>
-            <span v-if="script.spec.timeout_seconds">délai max {{ script.spec.timeout_seconds }} s</span>
-            <span :title="concurrency.help">{{ concurrency.label }}</span>
-            <span v-if="script.spec.retry.attempts > 1">{{ script.spec.retry.attempts }} essais</span>
+          <div class="flex items-center gap-1.5 md:gap-2 shrink-0">
+            <button v-if="running.length" class="btn-danger" @click="stop(running[0].id)"><Square class="h-4 w-4" /><span class="hidden sm:inline"> Arrêter</span></button>
+            <RouterLink :to="`/scripts/${script.slug}/edit`" class="btn-soft" title="Modifier"><Pencil class="h-4 w-4" /><span class="hidden sm:inline"> Modifier</span></RouterLink>
+            <button class="btn-icon btn-ghost text-muted hover:text-err" title="Supprimer" @click="remove"><Trash2 class="h-4 w-4" /></button>
           </div>
-          <p v-if="script.spec_error" class="mt-2 text-sm text-err">{{ script.spec_error }}</p>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <button v-if="running.length" class="btn-danger" @click="stop(running[0].id)"><Square class="h-4 w-4" /> Arrêter</button>
-          <RouterLink :to="`/scripts/${script.slug}/edit`" class="btn-soft"><Pencil class="h-4 w-4" /> Modifier</RouterLink>
-          <button class="btn-icon btn-ghost text-muted hover:text-err" title="Supprimer" @click="remove"><Trash2 class="h-4 w-4" /></button>
+        <p v-if="script.spec.description" class="text-sm text-text-2 mt-2 md:mt-3" :class="descOpen ? '' : 'line-clamp-2 md:line-clamp-none'" @click="descOpen = !descOpen">{{ script.spec.description }}</p>
+        <button v-if="(script.spec.description?.length ?? 0) > 110" type="button" class="md:hidden text-xs text-accent-2 mt-0.5" @click="descOpen = !descOpen">{{ descOpen ? 'Réduire' : 'Voir plus' }}</button>
+        <div class="mt-2 hidden md:flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted font-mono">
+          <span>{{ script.slug }}/{{ script.spec.file }}</span>
+          <span>{{ script.spec.command || script.spec.interpreter }}</span>
+          <span v-if="script.spec.timeout_seconds">délai max {{ script.spec.timeout_seconds }} s</span>
+          <span :title="concurrency.help">{{ concurrency.label }}</span>
+          <span v-if="script.spec.retry.attempts > 1">{{ script.spec.retry.attempts }} essais</span>
         </div>
+        <p v-if="script.spec_error" class="mt-2 text-sm text-err">{{ script.spec_error }}</p>
       </div>
     </div>
 
